@@ -12,7 +12,7 @@ const NAV: NavGroup[] = [
   {
     title: "Learning management",
     items: [
-      { label: "Courses" },
+      { label: "Courses", href: "/courses" },
       { label: "Videos" },
       { label: "AI Dubbing" },
       { label: "Live Classes" },
@@ -20,7 +20,11 @@ const NAV: NavGroup[] = [
   },
   {
     title: "Students",
-    items: [{ label: "All Students" }, { label: "Manual Enrollment" }, { label: "Certificates" }],
+    items: [
+      { label: "All Students", href: "/students" },
+      { label: "Manual Enrollment", href: "/students/enroll" },
+      { label: "Certificates" },
+    ],
   },
   {
     title: "Commerce",

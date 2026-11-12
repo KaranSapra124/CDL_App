@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -14,8 +15,11 @@ import (
 	"github.com/joho/godotenv"
 
 	"creditdost/backend/internal/config"
+	"creditdost/backend/internal/courses"
 	"creditdost/backend/internal/db"
 	"creditdost/backend/internal/httpapi"
+	"creditdost/backend/internal/media"
+	"creditdost/backend/internal/students"
 )
 
 func main() {
@@ -40,11 +44,35 @@ func main() {
 	}
 	defer pool.Close()
 
-	api := &httpapi.Server{DB: pool, Cfg: cfg}
+	api := &httpapi.Server{
+		DB:       pool,
+		Cfg:      cfg,
+		Courses:  &courses.Store{DB: pool},
+		Students: &students.Store{DB: pool},
+	}
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Router(),
 		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	if cfg.Transcode {
+		if _, err := exec.LookPath(cfg.FFmpegPath); err != nil {
+			log.Printf("WARNING: ffmpeg not found (%s); uploaded videos will wait until it is installed", cfg.FFmpegPath)
+		} else {
+			worker := media.New(media.Options{
+				DB:       pool,
+				MediaDir: cfg.MediaDir,
+				FFmpeg:   cfg.FFmpegPath,
+				FFprobe:  cfg.FFprobePath,
+			})
+			go func() {
+				if err := worker.Run(ctx); err != nil {
+					log.Printf("transcoder stopped: %v", err)
+				}
+			}()
+			log.Printf("transcoder running (ffmpeg: %s)", cfg.FFmpegPath)
+		}
 	}
 
 	go func() {

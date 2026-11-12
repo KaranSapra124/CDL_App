@@ -15,6 +15,12 @@ type Config struct {
 	JWTSecret       []byte // signing key for admin session tokens
 	CookieSecure    bool   // true = cookies only sent over HTTPS
 	AdminInviteCode string // required to create an admin via signup; empty = signup disabled
+	MediaDir        string // root folder for uploaded files, e.g. /srv/cdl/media on the VPS
+	MaxVideoBytes   int64  // largest accepted video upload
+	AdminOrigin     string // origin of the admin web app allowed to call the API directly, e.g. http://localhost:3000; empty = no CORS
+	Transcode       bool   // run the video transcoder inside this process
+	FFmpegPath      string // ffmpeg executable
+	FFprobePath     string // ffprobe executable
 }
 
 // Load reads and validates configuration. It returns an error naming the
@@ -26,6 +32,12 @@ func Load() (Config, error) {
 		JWTSecret:       []byte(os.Getenv("JWT_SECRET")),
 		CookieSecure:    getbool("COOKIE_SECURE", true),
 		AdminInviteCode: os.Getenv("ADMIN_INVITE_CODE"),
+		MediaDir:        getenv("MEDIA_DIR", "./media"),
+		MaxVideoBytes:   getint64("MAX_VIDEO_BYTES", 4<<30), // 4 GiB
+		AdminOrigin:     os.Getenv("ADMIN_ORIGIN"),
+		Transcode:       getbool("TRANSCODE_ENABLED", true),
+		FFmpegPath:      getenv("FFMPEG_PATH", "ffmpeg"),
+		FFprobePath:     getenv("FFPROBE_PATH", "ffprobe"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -42,6 +54,18 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getint64(key string, fallback int64) int64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
 }
 
 func getbool(key string, fallback bool) bool {
