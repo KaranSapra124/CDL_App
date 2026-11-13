@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credit Dost - Admin with lead management</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--p:#6a12e6;--p2:#f1e9fd;--ink:#1c1b2e;--mut:#6b6a80;--line:#e9e8f1;--bg:#f6f6fa;--card:#fff;
+--ok:#0f7a52;--okbg:#e2f5ec;--warn:#9a5b00;--warnbg:#fff0d4;--bad:#b42d2a;--badbg:#fde8e7;--info:#1d56b3;--infobg:#e6effd}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;color:var(--ink);background:var(--bg)}
+button,input,select{font:inherit;color:inherit}
+.top{position:fixed;top:0;left:220px;right:0;height:50px;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:20}
+.top b{font-weight:700;font-size:15px}
+.top .r{display:flex;align-items:center;gap:12px}
+.top select{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px}
+.top select option{color:#1c1b2e}
+.av{width:30px;height:30px;border-radius:50%;background:#2ecc8f;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.burger{display:none;background:none;border:0;color:#fff;font-size:22px;cursor:pointer;margin-right:10px}
+.side{position:fixed;top:0;left:0;bottom:0;width:220px;background:#fff;border-right:1px solid var(--line);overflow:auto;z-index:30;padding-bottom:20px}
+.logo{height:50px;display:flex;align-items:center;padding:0 16px;font-weight:700;font-size:20px;letter-spacing:-.3px;color:#2a1a6e}
+.logo i{font-style:normal;color:var(--p)}
+.grp{font-size:12px;color:var(--mut);padding:14px 16px 6px;font-weight:600}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:0 0 1px;cursor:pointer;color:#3a3950;font-size:13px;border:0;background:none;width:100%;text-align:left}
+.nav:hover{background:#f6f2fe}
+.nav.on{background:var(--p);color:#fff}
+.nav .d{width:14px;height:14px;border-radius:4px;background:#cfcde0;flex:none}
+.nav.on .d{background:#fff;opacity:.9}
+.nav .bd{margin-left:auto;background:var(--p2);color:var(--p);border-radius:10px;font-size:11px;padding:1px 7px;font-weight:700}
+.nav.on .bd{background:#fff}
+.nav.ex{color:#7d7c92}
+.tag{font-size:10px;background:#e2f5ec;color:var(--ok);border-radius:6px;padding:1px 6px;font-weight:700;margin-left:auto}
+main{margin-left:220px;padding:74px 24px 48px;max-width:1500px}
+h1{font-size:24px;margin:0 0 2px;letter-spacing:-.4px}
+h2{font-size:16px;margin:0 0 12px}
+.sub{color:var(--mut);margin:0 0 20px;font-size:13px}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.grid{display:grid;gap:14px}
+.g5{grid-template-columns:repeat(5,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1.2fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi .n{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-top:6px}
+.kpi .l{font-size:12px;color:var(--mut)}
+.kpi .s{font-size:11.5px;margin-top:4px;color:var(--mut)}
+.kpi.al .n{color:var(--bad)}
+.pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.p-info{background:var(--infobg);color:var(--info)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-ok{background:var(--okbg);color:var(--ok)}.p-bad{background:var(--badbg);color:var(--bad)}.p-gray{background:#eeedf5;color:#55546a}.p-pur{background:var(--p2);color:var(--p)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:13px}
+.btn:hover{border-color:#cbbdf0;background:#faf7ff}
+.btn.p{background:var(--p);border-color:var(--p);color:#fff}.btn.p:hover{background:#5a0ed0}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=number],select.f{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;min-width:0}
+input:focus,select:focus,.btn:focus-visible,.nav:focus-visible{outline:2px solid var(--p);outline-offset:1px}
+.tool{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tool .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;color:var(--mut);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:#fbfbfd}
+td{padding:10px 12px;border-bottom:1px solid #f1f0f6;vertical-align:middle}
+tr.cl{cursor:pointer}tr.cl:hover td{background:#faf7ff}
+td small{display:block;color:var(--mut);font-size:11.5px}
+.own{display:inline-flex;align-items:center;gap:7px}
+.ini{width:24px;height:24px;border-radius:50%;background:var(--p2);color:var(--p);display:grid;place-items:center;font-size:10.5px;font-weight:700}
+.bar{height:8px;border-radius:5px;background:#efedf7;overflow:hidden}.bar i{display:block;height:100%;background:var(--p)}
+.fn{display:grid;grid-template-columns:110px 1fr 36px;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+.li{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f1f0f6;cursor:pointer;align-items:center}
+.li:last-child{border:0}
+.li small{color:var(--mut);display:block}
+.empty{padding:26px;text-align:center;color:var(--mut)}
+.ov{position:fixed;inset:0;background:rgba(20,10,50,.35);z-index:40;display:none}
+.ov.on{display:block}
+.dr{position:fixed;top:0;right:0;bottom:0;width:min(470px,100%);background:#fff;z-index:50;transform:translateX(105%);transition:transform .22s;overflow:auto;padding:20px;box-shadow:-8px 0 30px rgba(0,0,0,.12)}
+.dr.on{transform:none}
+.dr h3{margin:0;font-size:18px}
+.sec{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.sec h4{margin:0 0 10px;font-size:13px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13px}.kv span:nth-child(odd){color:var(--mut)}
+.lock{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:9px 12px;font-size:12.5px;margin-top:12px}
+.tlp{border-left:2px solid var(--line);margin-left:6px;padding-left:14px}
+.te{position:relative;margin-bottom:12px;font-size:13px}
+.te:before{content:'';position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--p)}
+.te.sys:before{background:#bdbbd0}.te.pay:before{background:#1fa971}
+.te small{color:var(--mut);display:block}
+.frm{display:grid;gap:8px}
+.frm .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.frm select,.frm input{width:100%}
+.tg{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f0f6;gap:14px}
+.tg:last-child{border:0}
+.tg small{color:var(--mut);display:block;max-width:520px}
+.sw{position:relative;width:38px;height:22px;flex:none}
+.sw input{opacity:0;position:absolute;inset:0;cursor:pointer;margin:0;z-index:1}
+.sw span{position:absolute;inset:0;background:#cfcde0;border-radius:12px;transition:.15s}
+.sw span:after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+span{background:var(--p)}.sw input:checked+span:after{transform:translateX(16px)}
+.sw input:focus-visible+span{outline:2px solid var(--p);outline-offset:2px}
+.num{width:76px;text-align:center}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1c1b2e;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.2s;z-index:80;pointer-events:none;max-width:90vw;font-size:13px}
+#toast.on{opacity:1;transform:translateX(-50%)}
+.note{font-size:12px;color:var(--mut);margin-top:10px}
+.hl{background:var(--p2);border-radius:12px;padding:12px 16px;font-size:13px;margin-bottom:16px;color:#3b1b8a}
+@media(max-width:1100px){.g5{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+@media(max-width:860px){.side{transform:translateX(-100%);transition:.2s}.side.on{transform:none}.top{left:0}.burger{display:block}main{margin-left:0;padding:70px 14px 40px}.g3,.g5{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<aside class="side" id="side"></aside>
+<header class="top">
+  <div style="display:flex;align-items:center"><button class="burger" onclick="document.getElementById('side').classList.toggle('on')" aria-label="Menu">&#9776;</button><b>Admin Dashboard</b></div>
+  <div class="r">
+    <label style="font-size:12px;opacity:.85" for="role">Viewing as</label>
+    <select id="role" onchange="setRole(this.value)"></select>
+    <div class="av">N</div>
+  </div>
+</header>
+<main id="app"></main>
+<div class="ov" id="ov" onclick="closeLead()"></div>
+<aside class="dr" id="dr" aria-label="Lead details"></aside>
+<div id="toast" role="status"></div>
+
+<script>
+const STAFF=['Neha Sharma','Rahul Verma','Pooja Singh','Amit Kumar','Sana Khan'];
+const CAMPS=[
+ {n:'Franchise - Pan India - Video 1',t:'Franchise',cpl:140},
+ {n:'Franchise - Lookalike - Static',t:'Franchise',cpl:118},
+ {n:'Credit Score - Reels',t:'Credit repair',cpl:62},
+ {n:'Credit Score - Lead form 2',t:'Credit repair',cpl:54}];
+const PRICE={'Franchise':49999,'Credit repair':4999};
+const OUTC=['Interested','Call back','Not reachable','Not interested','Wrong number'];
+const STAGES=['New','Contacted','Interested','Payment pending','Paid','Lost'];
+const S={role:'admin',view:'dashboard',f:{q:'',type:'',status:'',owner:''},open:null,leads:[],pay:[],audit:[],nid:1029,
+ rules:{rr:true,active:{},reassignHrs:2,window:15,mask:true,noExport:true,inc:5}};
+STAFF.forEach(s=>S.rules.active[s]=true);
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const inr=n=>'\u20B9'+Math.round(n).toLocaleString('en-IN');
+const ago=h=>h<0.1?'just now':h<1?Math.round(h*60)+'m ago':h<24?Math.round(h)+'h ago':Math.round(h/24)+'d ago';
+const ini=n=>n.split(' ').map(x=>x[0]).join('');
+const $=s=>document.querySelector(s);
+const own=n=>'<span class="own"><span class="ini">'+ini(n)+'</span>'+esc(n)+'</span>';
+const mask=p=>(S.role!=='admin'&&S.rules.mask)?p.slice(0,2)+'******'+p.slice(-2):p;
+const vis=()=>S.role==='admin'?S.leads:S.leads.filter(l=>l.owner===S.role);
+const calls=l=>l.tl.filter(e=>e.k==='call');
+const ownerCallH=l=>{const c=calls(l).filter(e=>e.by===l.owner);return c.length?Math.min(...c.map(e=>e.h)):null};
+const lastActH=l=>{const a=l.tl.filter(e=>['call','link','pay','note'].includes(e.k));return a.length?Math.min(...a.map(e=>e.h)):null};
+const untouched=l=>l.status==='New'&&calls(l).length===0&&l.created>S.rules.reassignHrs;
+const openCount=s=>S.leads.filter(l=>l.owner===s&&!['Paid','Lost'].includes(l.status)).length;
+const spill=st=>'<span class="pill '+({New:'p-info',Contacted:'p-gray',Interested:'p-pur','Payment pending':'p-warn',Paid:'p-ok',Lost:'p-bad'}[st])+'">'+st+'</span>';
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.x);toast.x=setTimeout(()=>t.classList.remove('on'),2600)}
+function audit(who,text){S.audit.unshift({h:0,who,text})}
+function ev(l,k,text,by,h){l.tl.unshift({h:h==null?0:h,k,text,by:by||''})}
+function pick(ex){
+  const a=STAFF.filter(s=>S.rules.active[s]&&s!==ex);
+  if(!a.length)return null;
+  return a.sort((x,y)=>openCount(x)-openCount(y))[0];
+}
+
+(function seed(){
+ const names=['Aarav Mehta','Priya Nair','Rohit Gupta','Sunita Devi','Karan Malhotra','Neelam Joshi','Vikas Yadav','Anjali Rao','Manoj Tiwari','Farhan Ali','Deepa Iyer','Suresh Patel','Kavita Sharma','Imran Qureshi','Ritu Saxena','Harpreet Singh','Lakshmi Menon','Ajay Chauhan','Meena Kumari','Sandeep Jain','Pankaj Mishra','Divya Reddy','Tarun Arora','Shweta Pandey','Gaurav Bansal','Rekha Das','Mohit Kapoor','Nisha Verma'];
+ const cities=['Delhi','Mumbai','Jaipur','Lucknow','Pune','Patna','Indore','Hyderabad','Chandigarh','Kolkata','Bengaluru','Ahmedabad'];
+ const st=['New','New','Contacted','Interested','Payment pending','Paid','Lost','New','Contacted','Interested','Paid','Contacted','New','Lost','Payment pending','Contacted','New','Interested','Paid','Contacted','New','New','Lost','Contacted','Interested','Paid','New','Contacted'];
+ const cr=[1,2,5,8,11,14,20,0.5,26,30,34,3,0.7,48,52,6,9,15,60,70,4,0.3,80,25,33,90,1.5,7];
+ names.forEach((nm,i)=>{
+  const c=CAMPS[i%4],h=cr[i],status=st[i],owner=STAFF[i%5];
+  const l={id:'LD-'+(1001+i),name:nm,phone:'9'+String(100000000+((i+1)*48271*977)%899999999).padStart(9,'0'),city:cities[i%12],camp:c.n,type:c.t,owner,status,created:h,paid:0,fu:null,tl:[]};
+  ev(l,'sys','Lead created from Meta ('+c.n+')','',h);
+  ev(l,'assign','Assigned to '+owner+' (round robin)','System',h-0.05);
+  if(status!=='New'){
+   const ch=Math.max(h-1.2,0.2);
+   const o={Contacted:'Call back','Payment pending':'Interested',Interested:'Interested',Paid:'Interested',Lost:'Not interested'}[status];
+   ev(l,'call','Call: '+o,owner,ch);
+   if(status==='Payment pending'||status==='Paid')ev(l,'link','Payment link sent',owner,Math.max(ch-0.3,0.1));
+   if(status==='Paid'){l.paid=PRICE[c.t];ev(l,'pay','Payment received '+inr(l.paid)+' via payment link','System',Math.max(ch-0.6,0.05))}
+  }
+  if(['Contacted','Interested','Payment pending'].includes(status))l.fu=[-3,2,20][i%3];
+  S.leads.push(l);
+ });
+ S.leads.sort((a,b)=>a.created-b.created);
+ const byPhone=i=>S.leads.find(l=>l.id==='LD-'+(1001+i));
+ const P=(i,ch,phone,when)=>{const l=byPhone(i);return {id:'PY-'+(500+S.pay.length),utr:'4'+String(28100000000+S.pay.length*7391201).slice(0,11),amt:l?PRICE[l.type]:4999,ch,phone:phone||l.phone,when,state:'Unmatched',credit:'',reason:''}};
+ S.pay=[P(5,'Payment link',null,'Today, 09:40'),P(10,'Payment link',null,'Yesterday, 18:05'),
+  P(3,'Customer care',null,'Today, 11:12'),P(4,'UPI',null,'Today, 12:30'),P(14,'Customer care',null,'Today, 13:02'),P(20,'UPI',null,'Today, 13:15'),P(0,'UPI','9000000000','Today, 13:21')];
+ [0,1].forEach(i=>{const p=S.pay[i],l=S.leads.find(x=>x.phone===p.phone);p.state='Credited';p.credit=l.owner;p.reason='Paid through link sent by owner'});
+ audit('System','Dashboard loaded with demo data');
+})();
+
+function runMatch(p,force){
+ const l=S.leads.find(x=>x.phone===p.phone);
+ if(!l){p.state='No lead';p.credit='';p.reason='Phone not found in CRM. Admin must attach a lead.';return}
+ const h=ownerCallH(l);
+ if(force||(h!==null&&h<=S.rules.window*24)){
+  p.state='Credited';p.credit=l.owner;
+  p.reason=force?'Approved by admin':'Owner called '+ago(h)+', inside the '+S.rules.window+' day window';
+  p.lead=l.id;
+  if(l.status!=='Paid'){l.status='Paid';l.paid=p.amt;l.fu=null;ev(l,'pay','Payment received '+inr(p.amt)+' via '+p.ch+', credited to '+l.owner,'System')}
+  else ev(l,'pay','Payment '+inr(p.amt)+' via '+p.ch+' matched, credited to '+l.owner,'System');
+  audit('System','Payment '+p.id+' ('+inr(p.amt)+', '+p.ch+') credited to '+l.owner+' for '+l.id);
+ }else{
+  p.state='Review';p.credit=l.owner;p.lead=l.id;
+  p.reason='No call by owner in '+S.rules.window+' days. Admin decides.';
+  audit('System','Payment '+p.id+' sent for review on '+l.id);
+ }
+}
+
+function setRole(r){S.role=r;if(['rules','staff','camps','audit'].includes(S.view))S.view='dashboard';closeLead();render()}
+function go(v){S.view=v;document.getElementById('side').classList.remove('on');render();window.scrollTo(0,0)}
+
+const NAV=[['leads','All leads'],['follow','Follow-ups'],['pay','Payment matching'],['rules','Assignment rules',1],['staff','Staff performance',1],['camps','Campaign ROI',1],['audit','Audit log',1]];
+const EXIST=['Team & Roles','Manage Franchise','Manage Customers','Credit Check','View Reports','Business MIS','Support Tickets','Manual Payments','Manage Blogs','Google Sheets','Marketing Materials','Case Studies','AI Analysis'];
+function renderChrome(){
+ const sel=$('#role');
+ sel.innerHTML='<option value="admin">Admin</option>'+STAFF.map(s=>'<option value="'+s+'">'+s+' (caller)</option>').join('');
+ sel.value=S.role;
+ const un=vis().filter(untouched).length;
+ let h='<div class="logo">Credit<i>Dost</i></div>';
+ h+='<button class="nav '+(S.view==='dashboard'?'on':'')+'" onclick="go(\'dashboard\')"><span class="d"></span>Dashboard</button>';
+ h+='<div class="grp">Lead management</div>';
+ NAV.forEach(n=>{
+  if(n[2]&&S.role!=='admin')return;
+  const b=n[0]==='leads'&&un?'<span class="bd">'+un+'</span>':'';
+  h+='<button class="nav '+(S.view===n[0]?'on':'')+'" onclick="go(\''+n[0]+'\')"><span class="d"></span>'+n[1]+b+'</button>';
+ });
+ if(S.role==='admin'){
+  h+='<div class="grp">Existing menu</div>';
+  EXIST.forEach(e=>h+='<button class="nav ex" onclick="toast(\'Existing page, unchanged in this preview\')"><span class="d"></span>'+esc(e)+'</button>');
+ }
+ $('#side').innerHTML=h;
+}
+
+function render(){
+ renderChrome();
+ const v={dashboard:vDash,leads:vLeads,follow:vFollow,pay:vPay,rules:vRules,staff:vStaff,camps:vCamps,audit:vAudit}[S.view];
+ $('#app').innerHTML=v();
+ if(S.view==='leads')rows();
+ if(S.open)drawer();
+}
+
+function vDash(){
+ const L=vis(),today=L.filter(l=>l.created<=24).length,un=L.filter(untouched).length;
+ const pend=S.pay.filter(p=>p.state!=='Credited'&&(S.role==='admin'||(S.leads.find(l=>l.phone===p.phone)||{}).owner===S.role)).length;
+ const paid=L.filter(l=>l.status==='Paid'),rev=paid.reduce((a,l)=>a+l.paid,0);
+ const conv=L.length?(paid.length/L.length*100).toFixed(1):'0.0';
+ const att=L.filter(l=>untouched(l)||(l.fu!==null&&l.fu<0&&!['Paid','Lost'].includes(l.status))).slice(0,6);
+ const fn=STAGES.map(s=>({s,n:L.filter(l=>l.status===s).length}));const mx=Math.max(1,...fn.map(x=>x.n));
+ let h='<h1>Dashboard overview</h1><p class="sub">Welcome back, '+(S.role==='admin'?'Administrator':esc(S.role))+'. Here\u2019s what\u2019s happening today.</p>';
+ if(S.role!=='admin')h+='<div class="hl">You are viewing as <b>'+esc(S.role)+'</b>. Callers see only their own leads, and phone numbers are masked.</div>';
+ h+='<div class="grid g5">'+
+ '<div class="card kpi"><div class="l">Leads in last 24h</div><div class="n">'+today+'</div><div class="s">of '+L.length+' total</div></div>'+
+ '<div class="card kpi '+(un?'al':'')+'"><div class="l">Untouched over '+S.rules.reassignHrs+'h</div><div class="n">'+un+'</div><div class="s">Need a first call</div></div>'+
+ '<div class="card kpi"><div class="l">Payments to review</div><div class="n">'+pend+'</div><div class="s">Not yet credited</div></div>'+
+ '<div class="card kpi"><div class="l">Conversion rate</div><div class="n">'+conv+'%</div><div class="s">'+paid.length+' paid leads</div></div>'+
+ '<div class="card kpi"><div class="l">Attributed revenue</div><div class="n">'+inr(rev)+'</div><div class="s">From CRM leads</div></div></div>';
+ h+='<div class="grid g2" style="margin-top:14px"><div class="card"><h2>Needs attention</h2>';
+ h+=att.length?att.map(l=>'<div class="li" onclick="openLead(\''+l.id+'\')"><div>'+esc(l.name)+'<small>'+(untouched(l)?'No call yet, created '+ago(l.created):'Follow-up overdue by '+Math.abs(l.fu)+'h')+'</small></div><div>'+own(l.owner)+'</div></div>').join(''):'<div class="empty">Nothing pending. Good work.</div>';
+ h+='</div><div class="card"><h2>Lead funnel</h2>'+fn.map(x=>'<div class="fn"><span>'+x.s+'</span><div class="bar"><i style="width:'+(x.n/mx*100)+'%"></i></div><b>'+x.n+'</b></div>').join('')+'</div></div>';
+ if(S.role==='admin'){
+ h+='<h2 style="margin-top:26px">Franchise and customer overview (existing)</h2><div class="grid g3">'+
+ '<div class="card kpi"><div class="n">11 / 496</div><div class="l">Pending KYC / Total Franchises</div><div class="bar" style="margin-top:10px"><i style="width:4.5%;background:#f0a33a"></i></div></div>'+
+ '<div class="card kpi"><div class="n">21 / 273</div><div class="l">Report Section</div><div class="s">Today / Monthly</div></div>'+
+ '<div class="card kpi"><div class="n">1 / 40</div><div class="l">AI Report</div><div class="s">Today / Monthly</div></div>'+
+ '<div class="card kpi"><div class="n">\u20B910,097,086</div><div class="l">Revenue from Franchise Packages</div></div>'+
+ '<div class="card kpi"><div class="n">\u20B92,382,193.64</div><div class="l">Revenue from Customer Packages</div></div>'+
+ '<div class="card kpi"><div class="n">\u20B913,87,546</div><div class="l">Total Revenue (Lifetime)</div></div></div>';
+ }
+ return h;
+}
+
+function vLeads(){
+ const f=S.f;
+ let h='<h1>Leads</h1><p class="sub">'+(S.role==='admin'?'Every lead has exactly one owner. Only an admin can change it.':'Showing only the leads assigned to you.')+'</p>';
+ h+='<div class="tool"><input type="text" id="q" placeholder="Search name, phone or ID" value="'+esc(f.q)+'" oninput="S.f.q=this.value;rows()" style="width:230px">'+
+ '<select class="f" onchange="S.f.type=this.value;rows()"><option value="">All types</option><option>Franchise</option><option>Credit repair</option></select>'+
+ '<select class="f" onchange="S.f.status=this.value;rows()"><option value="">All stages</option>'+STAGES.map(s=>'<option>'+s+'</option>').join('')+'</select>';
+ if(S.role==='admin')h+='<select class="f" onchange="S.f.owner=this.value;rows()"><option value="">All owners</option>'+STAFF.map(s=>'<option>'+s+'</option>').join('')+'</select>';
+ h+='<div class="sp">';
+ if(S.role==='admin')h+='<button class="btn" onclick="simNew()">Simulate new Meta lead</button><button class="btn" onclick="simDup()">Simulate duplicate</button>';
+ if(S.role==='admin'||!S.rules.noExport)h+='<button class="btn" onclick="audit(S.role==\'admin\'?\'Admin\':S.role,\'Exported leads list\');toast(\'Export created and logged in the audit log\')">Export</button>';
+ h+='</div></div><div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Lead</th><th>Type</th><th>Campaign</th><th>Owner</th><th>Stage</th><th>Last activity</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>';
+ h+='<p class="note">Click any row to open the lead, log a call, send a payment link or (admin) reassign.</p>';
+ return h;
+}
+function rows(){
+ const f=S.f,q=f.q.toLowerCase();
+ const L=vis().filter(l=>(!f.type||l.type===f.type)&&(!f.status||l.status===f.status)&&(!f.owner||l.owner===f.owner)&&(!q||(l.name+l.phone+l.id).toLowerCase().includes(q)));
+ L.sort((a,b)=>a.created-b.created);
+ const tb=$('#tb');if(!tb)return;
+ tb.innerHTML=L.length?L.map(l=>{
+  const a=lastActH(l);
+  return '<tr class="cl" onclick="openLead(\''+l.id+'\')"><td>'+esc(l.name)+'<small>'+l.id+' \u00b7 '+mask(l.phone)+' \u00b7 '+esc(l.city)+'</small></td>'+
+  '<td>'+l.type+'</td><td><small style="display:block;color:inherit;font-size:12.5px">'+esc(l.camp)+'</small></td><td>'+own(l.owner)+'</td><td>'+spill(l.status)+'</td>'+
+  '<td>'+(a===null?'<span class="pill p-bad">'+(untouched(l)?'Untouched '+ago(l.created).replace(' ago',''):'No activity')+'</span>':ago(a))+'</td><td>'+(l.status==='Paid'?'<b>'+inr(l.paid)+'</b>':'')+'</td></tr>';
+ }).join(''):'<tr><td colspan="7"><div class="empty">No leads match these filters.</div></td></tr>';
+}
+
+function vFollow(){
+ const L=vis().filter(l=>l.fu!==null&&!['Paid','Lost'].includes(l.status)).sort((a,b)=>a.fu-b.fu);
+ let h='<h1>Follow-ups</h1><p class="sub">Your daily task list, with overdue calls first.</p><div class="card">';
+ h+=L.length?L.map(l=>{const od=l.fu<0;
+  return '<div class="li" onclick="openLead(\''+l.id+'\')"><div>'+esc(l.name)+' '+spill(l.status)+'<small>'+l.type+' \u00b7 '+mask(l.phone)+'</small></div><div style="text-align:right"><span class="pill '+(od?'p-bad':l.fu<6?'p-warn':'p-gray')+'">'+(od?'Overdue by '+Math.abs(l.fu)+'h':l.fu<6?'Due in '+l.fu+'h':'Tomorrow')+'</span><div style="margin-top:4px">'+(S.role==='admin'?own(l.owner):'')+'</div></div></div>'}).join(''):'<div class="empty">No follow-ups scheduled.</div>';
+ return h+'</div>';
+}
+
+function vPay(){
+ const mine=S.pay.filter(p=>S.role==='admin'||(S.leads.find(l=>l.phone===p.phone)||{}).owner===S.role);
+ let h='<h1>Payment matching</h1><p class="sub">Every payment, whichever way it arrives, is matched to a lead by phone number or UTR, and credited to the lead owner under your rule.</p>';
+ h+='<div class="hl">Credit rule in force: the owner gets credit if they logged a call within the last <b>'+S.rules.window+' days</b>, regardless of who took the payment.</div>';
+ if(S.role==='admin')h+='<div class="tool"><button class="btn p" onclick="matchAll()">Run auto-match</button></div>';
+ h+='<div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Payment</th><th>Received via</th><th>Phone</th><th>Lead</th><th>Credit to</th><th>Status</th><th></th></tr></thead><tbody>';
+ h+=mine.map(p=>{
+  const l=S.leads.find(x=>x.phone===p.phone);
+  const pl={Credited:'p-ok',Review:'p-warn','No lead':'p-bad',Unmatched:'p-gray'}[p.state];
+  let act='';
+  if(S.role==='admin'){
+   if(p.state==='Review')act='<button class="btn sm p" onclick="approve(\''+p.id+'\')">Approve to owner</button>';
+   else if(p.state==='No lead')act='<select class="f" style="padding:3px 6px;font-size:12px;max-width:140px" onchange="attach(\''+p.id+'\',this.value)"><option value="">Attach lead</option>'+S.leads.map(x=>'<option value="'+x.id+'">'+x.id+' '+esc(x.name)+'</option>').join('')+'</select>';
+  }
+  return '<tr><td><b>'+inr(p.amt)+'</b><small>UTR '+p.utr+' \u00b7 '+p.when+'</small></td><td>'+p.ch+'</td><td>'+mask(p.phone)+'</td><td>'+(l?esc(l.name)+'<small>'+l.id+'</small>':'<small>Not found</small>')+'</td><td>'+(p.credit?own(p.credit):'-')+'</td><td><span class="pill '+pl+'">'+p.state+'</span>'+(p.reason?'<small>'+esc(p.reason)+'</small>':'')+'</td><td>'+act+'</td></tr>';
+ }).join('')||'<tr><td colspan="7"><div class="empty">No payments yet.</div></td></tr>';
+ return h+'</tbody></table></div></div>';
+}
+function matchAll(){let n=0;S.pay.forEach(p=>{if(p.state==='Unmatched'){runMatch(p);n++}});toast(n+' payments processed');render()}
+function approve(id){const p=S.pay.find(x=>x.id===id);runMatch(p,true);audit('Admin','Approved '+id+' to owner '+p.credit);toast('Credited to '+p.credit);render()}
+function attach(id,lid){if(!lid)return;const p=S.pay.find(x=>x.id===id),l=S.leads.find(x=>x.id===lid);p.phone=l.phone;audit('Admin','Attached '+id+' to '+lid);runMatch(p);toast('Attached to '+l.name);render()}
+
+function vRules(){
+ const R=S.rules;
+ const tg=(k,t,d)=>'<div class="tg"><div><b>'+t+'</b><small>'+d+'</small></div><label class="sw"><input type="checkbox" '+(R[k]?'checked':'')+' onchange="S.rules.'+k+'=this.checked;toast(\'Saved\');renderChrome()"><span></span></label></div>';
+ let h='<h1>Assignment rules</h1><p class="sub">Control how leads are given out, how long an owner keeps credit, and what callers can see.</p><div class="grid g2"><div class="card"><h2>Distribution</h2>';
+ h+=tg('rr','Auto-assign new leads','Each new Meta lead goes to the active caller with the fewest open leads.');
+ h+='<div class="tg"><div><b>Auto-reassign if untouched</b><small>A new lead with no call after this many hours can be moved to the next caller.</small></div><div><input type="number" class="num" min="1" max="48" value="'+R.reassignHrs+'" onchange="S.rules.reassignHrs=Math.max(1,+this.value||2);toast(\'Saved\');render()"> hours</div></div>';
+ h+='<div class="tg"><div><b>Credit window</b><small>The owner keeps credit if they logged a call within this many days.</small></div><div><input type="number" class="num" min="1" max="90" value="'+R.window+'" onchange="S.rules.window=Math.max(1,+this.value||15);toast(\'Saved\')"> days</div></div>';
+ h+='<div class="tg"><div><b>Incentive on attributed revenue</b><small>Used in staff performance.</small></div><div><input type="number" class="num" min="0" max="50" value="'+R.inc+'" onchange="S.rules.inc=Math.max(0,+this.value||0);toast(\'Saved\')"> %</div></div>';
+ h+='<div style="margin-top:14px"><button class="btn p" onclick="autoReassign()">Reassign untouched leads now</button></div></div>';
+ h+='<div class="card"><h2>Security</h2>'+tg('mask','Mask phone numbers for callers','Callers use click-to-call and never see the full number.')+tg('noExport','Block export for callers','Only admins can download lead lists. Every export is logged.')+
+ '<h2 style="margin-top:20px">Caller availability</h2>'+STAFF.map(s=>'<div class="tg"><div>'+own(s)+'<small>'+openCount(s)+' open leads</small></div><label class="sw"><input type="checkbox" '+(R.active[s]?'checked':'')+' onchange="S.rules.active[\''+s+'\']=this.checked;toast(\''+s.split(' ')[0]+(R.active[s]?' paused':' active')+'\')"><span></span></label></div>').join('')+'</div></div>';
+ return h;
+}
+function autoReassign(){
+ let n=0;
+ S.leads.filter(untouched).forEach(l=>{const t=pick(l.owner);if(!t)return;const o=l.owner;l.owner=t;ev(l,'assign','Reassigned from '+o+' to '+t+' (no call in '+S.rules.reassignHrs+'h)','System');audit('System',l.id+' moved from '+o+' to '+t+' (untouched over '+S.rules.reassignHrs+'h)');n++});
+ toast(n?n+' leads reassigned':'No untouched leads to move');render();
+}
+
+function vStaff(){
+ let h='<h1>Staff performance</h1><p class="sub">Built from logged calls and attributed payments only.</p><div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Caller</th><th>Leads</th><th>Calls</th><th>Connected</th><th>Paid</th><th>Conversion</th><th>Revenue</th><th>Incentive ('+S.rules.inc+'%)</th></tr></thead><tbody>';
+ const R=STAFF.map(s=>{const L=S.leads.filter(l=>l.owner===s);const c=S.leads.flatMap(l=>calls(l)).filter(e=>e.by===s);const cn=c.filter(e=>!/Not reachable|Wrong number/.test(e.text)).length;const pd=L.filter(l=>l.status==='Paid');const rev=pd.reduce((a,l)=>a+l.paid,0);return {s,n:L.length,c:c.length,cn,pd:pd.length,rev}});
+ h+=R.map(r=>'<tr><td>'+own(r.s)+'</td><td>'+r.n+'</td><td>'+r.c+'</td><td>'+r.cn+'</td><td>'+r.pd+'</td><td>'+(r.n?(r.pd/r.n*100).toFixed(1):'0.0')+'%</td><td><b>'+inr(r.rev)+'</b></td><td>'+inr(r.rev*S.rules.inc/100)+'</td></tr>').join('');
+ return h+'</tbody></table></div></div>';
+}
+
+function vCamps(){
+ let h='<h1>Campaign ROI</h1><p class="sub">Which ads bring paying customers, not just cheap leads. Spend is assumed from cost per lead in this demo.</p><div class="card" style="padding:0"><div class="tw"><table><thead><tr><th>Campaign</th><th>Type</th><th>Leads</th><th>Paid</th><th>Spend</th><th>Cost / lead</th><th>Cost / paid</th><th>Revenue</th><th>Return</th></tr></thead><tbody>';
+ h+=CAMPS.map(c=>{const L=S.leads.filter(l=>l.camp===c.n),pd=L.filter(l=>l.status==='Paid'),rev=pd.reduce((a,l)=>a+l.paid,0),sp=L.length*c.cpl;
+  return '<tr><td>'+esc(c.n)+'</td><td>'+c.t+'</td><td>'+L.length+'</td><td>'+pd.length+'</td><td>'+inr(sp)+'</td><td>'+inr(c.cpl)+'</td><td>'+(pd.length?inr(sp/pd.length):'-')+'</td><td><b>'+inr(rev)+'</b></td><td><span class="pill '+(rev>sp?'p-ok':'p-bad')+'">'+(sp?(rev/sp).toFixed(1):'0')+'x</span></td></tr>'}).join('');
+ return h+'</tbody></table></div></div>';
+}
+
+function vAudit(){
+ let h='<h1>Audit log</h1><p class="sub">Every assignment, reassignment, payment credit and export is recorded.</p><div class="card">';
+ h+=S.audit.length?S.audit.map(a=>'<div class="li" style="cursor:default"><div>'+esc(a.text)+'<small>'+esc(a.who)+'</small></div></div>').join(''):'<div class="empty">No entries yet.</div>';
+ return h+'</div>';
+}
+
+function openLead(id){S.open=id;$('#ov').classList.add('on');$('#dr').classList.add('on');drawer()}
+function closeLead(){S.open=null;$('#ov').classList.remove('on');$('#dr').classList.remove('on')}
+function drawer(){
+ const l=S.leads.find(x=>x.id===S.open);if(!l)return;
+ const adm=S.role==='admin',mine=adm||l.owner===S.role;
+ let h='<div style="display:flex;justify-content:space-between;align-items:start"><div><h3>'+esc(l.name)+'</h3><div style="color:var(--mut);font-size:12.5px;margin-top:2px">'+l.id+'</div></div><button class="btn sm" onclick="closeLead()">Close</button></div>';
+ h+='<div style="margin-top:12px">'+spill(l.status)+'</div>';
+ h+='<div class="kv" style="margin-top:14px"><span>Phone</span><span>'+mask(l.phone)+'</span><span>City</span><span>'+esc(l.city)+'</span><span>Type</span><span>'+l.type+'</span><span>Campaign</span><span>'+esc(l.camp)+'</span><span>Owner</span><span>'+own(l.owner)+'</span>'+(l.paid?'<span>Paid</span><span><b>'+inr(l.paid)+'</b></span>':'')+'</div>';
+ h+='<div class="lock">Owner locked. '+(adm?'Only an admin can change the owner.':'This lead stays with '+esc(l.owner)+' unless an admin reassigns it.')+'</div>';
+ if(mine&&!['Paid'].includes(l.status)){
+  h+='<div class="sec"><h4>Log a call</h4><div class="frm"><div class="two"><select id="oc">'+OUTC.map(o=>'<option>'+o+'</option>').join('')+'</select><button class="btn" onclick="toast(\'Calling through the dialer (demo)\')">Click to call</button></div><input type="text" id="nt" placeholder="Call note (required)"><button class="btn p" onclick="logCall()">Save call</button></div></div>';
+  h+='<div class="sec"><h4>Payment</h4><button class="btn" onclick="sendLink()">Create payment link ('+inr(PRICE[l.type])+')</button><div class="note">The link is tied to this lead, so the payment is credited to the owner automatically.</div></div>';
+ }
+ if(adm){h+='<div class="sec"><h4>Reassign owner</h4><div class="frm"><select id="ra">'+STAFF.filter(s=>s!==l.owner).map(s=>'<option>'+s+'</option>').join('')+'</select><input type="text" id="rr" placeholder="Reason (required)"><button class="btn" onclick="reassign()">Reassign</button></div></div>'}
+ h+='<div class="sec"><h4>Timeline</h4><div class="tlp">'+l.tl.map(e=>'<div class="te '+(e.k==='sys'||e.k==='assign'?'sys':e.k==='pay'?'pay':'')+'">'+esc(e.text)+'<small>'+(e.by?esc(e.by)+' \u00b7 ':'')+ago(e.h)+'</small></div>').join('')+'</div></div>';
+ $('#dr').innerHTML=h;
+}
+function logCall(){
+ const l=S.leads.find(x=>x.id===S.open),o=$('#oc').value,n=$('#nt').value.trim();
+ if(!n){toast('Add a call note first');$('#nt').focus();return}
+ const by=S.role==='admin'?l.owner:S.role;
+ ev(l,'call','Call: '+o+' - '+n,by);
+ if(o==='Interested')l.status='Interested';
+ else if(o==='Not interested'||o==='Wrong number')l.status='Lost';
+ else if(l.status==='New')l.status='Contacted';
+ l.fu=o==='Call back'||o==='Not reachable'?3:(o==='Interested'?24:null);
+ audit(by,'Call logged on '+l.id+' ('+o+')');
+ toast('Call saved');render();
+}
+function sendLink(){
+ const l=S.leads.find(x=>x.id===S.open),by=S.role==='admin'?l.owner:S.role;
+ ev(l,'link','Payment link created: pay.creditdost.co.in/'+l.id+' (demo)',by);
+ if(!['Paid'].includes(l.status))l.status='Payment pending';
+ audit(by,'Payment link sent for '+l.id);toast('Payment link created and logged');render();
+}
+function reassign(){
+ const l=S.leads.find(x=>x.id===S.open),t=$('#ra').value,r=$('#rr').value.trim();
+ if(!r){toast('Add a reason for the reassignment');$('#rr').focus();return}
+ const o=l.owner;l.owner=t;ev(l,'assign','Reassigned from '+o+' to '+t+'. Reason: '+r,'Admin');
+ audit('Admin',l.id+' moved from '+o+' to '+t+'. Reason: '+r);toast('Reassigned to '+t);render();
+}
+const EXTRA=['Rajesh Khanna','Alka Tripathi','Zoya Sheikh','Dinesh Rawat','Smita Kulkarni','Yash Thakur'];
+function simNew(){
+ const t=pick(null);if(!t){toast('No active callers. Turn one on in Assignment rules.');return}
+ const c=CAMPS[Math.floor(Math.random()*4)],nm=EXTRA[Math.floor(Math.random()*EXTRA.length)];
+ const l={id:'LD-'+(S.nid++),name:nm,phone:'9'+String(Math.floor(100000000+Math.random()*899999999)),city:'Delhi',camp:c.n,type:c.t,owner:t,status:'New',created:0,paid:0,fu:null,tl:[]};
+ ev(l,'sys','Lead created from Meta ('+c.n+')','',0);ev(l,'assign','Assigned to '+t+' (least open leads)','System',0);
+ S.leads.push(l);audit('System',l.id+' created and assigned to '+t);toast(nm+' assigned to '+t);render();
+}
+function simDup(){
+ const l=S.leads[Math.floor(Math.random()*S.leads.length)];
+ audit('System','Duplicate blocked: '+l.name+' submitted the form again. Kept with '+l.owner);
+ ev(l,'note','Submitted the Meta form again. Duplicate blocked.','System');
+ toast('Duplicate blocked. Lead stays with '+l.owner);render();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLead()});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-primary: #6a12e6;
+  --color-primary-dark: #5a0ed0;
+  --color-primary-soft: #f1e9fd;
+  --color-ink: #1c1b2e;
+  --color-mut: #6b6a80;
+  --color-line: #e9e8f1;
+  --color-page: #f6f6fa;
+}
+
+body {
+  @apply bg-page font-sans text-ink antialiased;
+}
