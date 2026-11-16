@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
-import { statusMeta, STATUS_META } from "../lib/status";
+import { statusMeta, categoryMeta, STATUS_META, CATEGORY_META } from "../lib/status";
 import { timeAgo, initials } from "../lib/format";
 import LeadDrawer from "../components/LeadDrawer";
 import { getAuth } from "../lib/auth";
 
 export default function Leads() {
   const { user } = getAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" && user?.subRole === 'super_admin';
   const [leads, setLeads] = useState([]);
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [owner, setOwner] = useState("");
   const [open, setOpen] = useState(null);
@@ -36,10 +37,11 @@ export default function Leads() {
   const filtered = leads
     .filter(
       (l) =>
+        (!category || l.interestCategory === category) &&
         (!status || l.status === status) &&
         (!owner || l.assignedTo?._id === owner) &&
         (!q ||
-          `${l.name} ${l.phone} ${l._id}`.toLowerCase().includes(q.toLowerCase()))
+          `${l.name} ${l.mobile} ${l._id}`.toLowerCase().includes(q.toLowerCase()))
     )
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -65,8 +67,16 @@ export default function Leads() {
           onChange={(e) => setQ(e.target.value)}
           className={`w-[230px] ${selectCls}`}
         />
+        <select className={selectCls} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="">All categories</option>
+          {Object.entries(CATEGORY_META).map(([key, m]) => (
+            <option key={key} value={key}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <select className={selectCls} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All stages</option>
+          <option value="">All statuses</option>
           {Object.entries(STATUS_META).map(([key, m]) => (
             <option key={key} value={key}>
               {m.label}
@@ -100,7 +110,7 @@ export default function Leads() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-[#fbfbfd]">
-                  {["Lead", "Stage", "Owner", "Last activity", ""].map((h) => (
+                  {["Lead", "Interest", "Status", "Owner", "Last activity"].map((h) => (
                     <th
                       key={h}
                       className="whitespace-nowrap border-b border-line px-3 py-2.5 text-left text-xs font-semibold text-mut"
@@ -121,8 +131,16 @@ export default function Leads() {
                       <td className="px-3 py-2.5">
                         {l.name}
                         <small className="block text-[11.5px] text-mut">
-                          {l.phone} · {l.source || "web"}
+                          {l.mobile} · {l.city || l.state || "—"}
                         </small>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${categoryMeta(l.interestCategory).cls}`}>
+                          {categoryMeta(l.interestCategory).label}
+                        </span>
+                        {l.interest && (
+                          <small className="block text-[11.5px] text-mut">{l.interest}</small>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${statusMeta(l.status).cls}`}>
@@ -142,11 +160,6 @@ export default function Leads() {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-[13px]">{timeAgo(l.updatedAt)}</td>
-                      <td className="px-3 py-2.5">
-                        {l.status === "converted" && (
-                          <b className="text-[13px] text-emerald-700">Converted</b>
-                        )}
-                      </td>
                     </tr>
                   ))
                 ) : (
@@ -175,7 +188,10 @@ export default function Leads() {
         managers={managers}
         isAdmin={isAdmin}
         onClose={() => setOpen(null)}
-        onUpdated={() => load()}
+        onUpdated={(updated) => {
+          setLeads((prev) => prev.map((l) => (l._id === updated._id ? updated : l)));
+          setOpen(updated);
+        }}
       />
     </div>
   );

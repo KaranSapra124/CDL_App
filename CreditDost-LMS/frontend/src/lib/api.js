@@ -24,3 +24,23 @@ export async function apiFetch(path, options = {}) {
   if (!res.ok) throw new Error(data.message || `Request failed: ${res.status}`);
   return data;
 }
+
+export async function apiUpload(path, formData) {
+  const { token } = getAuth();
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (res.status === 401 && token) {
+    clearAuth();
+    window.location.href = "/login";
+  }
+
+  if (!res.ok) throw new Error(data.message || `Request failed: ${res.status}`);
+  return data;
+}

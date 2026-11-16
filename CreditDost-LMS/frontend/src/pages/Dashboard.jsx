@@ -40,11 +40,20 @@ export default function Dashboard() {
   ).length;
   const unassigned = leads.filter((l) => !l.assignedTo).length;
   const assigned = total - unassigned;
-  const converted = leads.filter((l) => l.status === "converted").length;
-  const convRate = total ? ((converted / total) * 100).toFixed(1) : "0.0";
+  const closed = leads.filter(
+    (l) => l.status === "Closed" || l.status === "Sale Closed"
+  ).length;
+  const notInterested = leads.filter((l) => l.status === "Not Interested").length;
+  const convRate = total ? ((closed / total) * 100).toFixed(1) : "0.0";
 
   const attention = leads
-    .filter((l) => !l.assignedTo || l.status === "new")
+    .filter(
+      (l) =>
+        !l.assignedTo ||
+        l.status === "Work In Progress" ||
+        l.status === "Not Contacted" ||
+        l.interestCategory === "Follow Up"
+    )
     .slice(0, 6);
 
   const stages = Object.entries(STATUS_META).map(([key, meta]) => ({
@@ -95,8 +104,8 @@ export default function Dashboard() {
           danger={unassigned > 0}
         />
         <Kpi label={isAdmin ? "Assigned leads" : "My leads"} value={assigned} sub={isAdmin ? "Owned by business managers" : "Assigned to you"} />
-        <Kpi label="Converted" value={converted} sub={`${convRate}% conversion rate`} />
-        <Kpi label="Lost leads" value={leads.filter((l) => l.status === "lost").length} sub="Marked as lost" />
+        <Kpi label="Closed" value={closed} sub={`${convRate}% conversion rate`} />
+        <Kpi label="Not interested" value={notInterested} sub="Marked as not interested" />
       </div>
 
       <div className="mt-3.5 grid gap-3.5 lg:grid-cols-[1.2fr_1fr]">

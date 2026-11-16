@@ -11,7 +11,7 @@ router.use(protect);
 router.get("/staff", async (req, res) => {
   try {
     const managers = await User.find({
-      subRole: { $exists: true, $nin: [null, ""] },
+      subRole: { $exists: true, $nin: [null, "franchise", "super_admin", ""] },
       isActive: true,
     })
       .select("name email staffCode subRole role")

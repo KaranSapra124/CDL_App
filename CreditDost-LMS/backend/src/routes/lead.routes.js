@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { protect, adminOnly } from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
 import {
   getLeads,
   getLead,
@@ -8,13 +9,23 @@ import {
   updateLead,
   deleteLead,
 } from "../controllers/lead.controller.js";
+import {
+  importLeads,
+  getImportedLeads,
+} from "../controllers/import.controller.js";
 
 const router = Router();
 
 router.use(protect);
 
 router.route("/").get(getLeads).post(adminOnly, createLead);
-router.route("/:id").get(getLead).put(adminOnly, updateLead).delete(adminOnly, deleteLead);
+router.post("/import", adminOnly, upload.single("file"), importLeads);
+router.get("/imported", getImportedLeads);
+router.route("/:id").get(getLead).put(updateLead).delete(adminOnly, deleteLead);
 router.route("/:id/assign").put(adminOnly, assignLead);
+
+router.use((err, req, res, next) => {
+  res.status(400).json({ success: false, message: err.message });
+});
 
 export default router;

@@ -3,6 +3,8 @@ import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
+import FollowUps from "./pages/FollowUps";
+import ImportLeads from "./pages/ImportLeads";
 import Placeholder from "./pages/Placeholder";
 import { getAuth, clearAuth } from "./lib/auth";
 
@@ -51,36 +53,8 @@ export default function App() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/leads" element={<Leads />} />
-          <Route
-            path="/follow-ups"
-            element={
-              <Placeholder
-                icon="📞"
-                title="Follow-ups"
-                description="Your daily task list, with overdue calls first."
-              />
-            }
-          />
-          <Route
-            path="/payments"
-            element={
-              <Placeholder
-                icon="💳"
-                title="Payment Matching"
-                description="Every payment, whichever way it arrives, matched to a lead and credited to its owner."
-              />
-            }
-          />
-          <Route
-            path="/rules"
-            element={
-              <Placeholder
-                icon="⚙️"
-                title="Assignment Rules"
-                description="Control how leads are distributed, auto-reassignment and caller availability."
-              />
-            }
-          />
+          <Route path="/import" element={<ImportLeads />} />
+          <Route path="/follow-ups" element={<FollowUps />} />
           <Route
             path="/staff"
             element={
@@ -88,26 +62,6 @@ export default function App() {
                 icon="📊"
                 title="Staff Performance"
                 description="Built from logged calls and attributed payments only."
-              />
-            }
-          />
-          <Route
-            path="/campaigns"
-            element={
-              <Placeholder
-                icon="📣"
-                title="Campaign ROI"
-                description="Which ads bring paying customers, not just cheap leads."
-              />
-            }
-          />
-          <Route
-            path="/audit"
-            element={
-              <Placeholder
-                icon="🧾"
-                title="Audit Log"
-                description="Every assignment, reassignment and payment credit is recorded."
               />
             }
           />

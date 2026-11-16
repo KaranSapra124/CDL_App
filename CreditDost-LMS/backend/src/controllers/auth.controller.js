@@ -55,7 +55,7 @@ export const login = async (req, res) => {
       {
         id: user._id,
         email: user.email,
-        role: user?.role && user?.subRole ? "":"admin",
+        role: user?.role && user?.subRole ? "" : "admin",
         subRole: user.subRole || "",
       },
       process.env.JWT_SECRET,

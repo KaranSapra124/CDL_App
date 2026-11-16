@@ -1,14 +1,90 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
-import { statusMeta } from "../lib/status";
-import { timeAgo, initials } from "../lib/format";
+import { statusMeta, categoryMeta, STATUS_META, CATEGORY_META, INTEREST_OPTIONS } from "../lib/status";
+import { timeAgo, initials, toDateTimeInput, formatDateTime } from "../lib/format";
 import { toast } from "../lib/toast";
 
 export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, onUpdated }) {
-  const [manager, setManager] = useState(lead?.assignedTo?._id || "");
+  const [manager, setManager] = useState("");
+  const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  if (!lead) return null;
+  useEffect(() => {
+    if (lead) {
+      setManager(lead.assignedTo?._id || "");
+      setForm({
+        name: lead.name || "",
+        email: lead.email || "",
+        mobile: lead.mobile || "",
+        city: lead.city || "",
+        state: lead.state || "",
+        groupJoined: lead.groupJoined || "",
+        interestCategory: lead.interestCategory || "",
+        interest: lead.interest || "",
+        status: lead.status || "Work In Progress",
+        nextFollowUp: toDateTimeInput(lead.nextFollowUp),
+        remarks: lead.remarks || "",
+      });
+    }
+  }, [lead]);
+
+  if (!lead || !form) return null;
+
+  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const handleCategoryChange = (cat) => {
+    setForm((f) => ({
+      ...f,
+      interestCategory: cat,
+      interest: INTEREST_OPTIONS[cat]?.includes(f.interest) ? f.interest : "",
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const body = isAdmin
+        ? {
+            name: form.name,
+            email: form.email,
+            mobile: form.mobile,
+            city: form.city,
+            state: form.state,
+            groupJoined: form.groupJoined,
+            interestCategory: form.interestCategory || null,
+            interest: form.interest || null,
+            status: form.status,
+            nextFollowUp: form.nextFollowUp
+              ? new Date(form.nextFollowUp).toISOString()
+              : null,
+            remarks: form.remarks,
+          }
+        : {
+            interestCategory: form.interestCategory || null,
+            interest: form.interest || null,
+            status: form.status,
+            nextFollowUp: form.nextFollowUp
+              ? new Date(form.nextFollowUp).toISOString()
+              : null,
+            remarks: form.remarks,
+          };
+
+      const res = await apiFetch(`/leads/${lead._id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
+
+      toast("Lead updated");
+      onUpdated(res.data);
+    } catch (err) {
+      toast(err.message || "Failed to update lead");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    "w-full rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] focus:border-primary focus:outline-none";
 
   const handleAssign = async () => {
     if (!manager) {
@@ -32,9 +108,20 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
   };
 
   const rows = [
-    ["Phone", lead.phone],
+    ["Mobile", lead.mobile],
+    [
+      "WhatsApp",
+      lead.whatsappNumber
+        ? /^\d{6,}$/.test(lead.whatsappNumber)
+          ? `+91 ${lead.whatsappNumber}`
+          : lead.whatsappNumber
+        : "—",
+    ],
     ["Email", lead.email || "—"],
     ["Source", lead.source || "—"],
+    ["City", lead.city || "—"],
+    ["State", lead.state || "—"],
+    ["Next call", lead.nextFollowUp ? formatDateTime(lead.nextFollowUp) : "—"],
     ["Created", new Date(lead.createdAt).toLocaleString("en-IN")],
     ["Last updated", new Date(lead.updatedAt).toLocaleString("en-IN")],
     [
@@ -72,7 +159,10 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
           </button>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${categoryMeta(lead.interestCategory).cls}`}>
+            {categoryMeta(lead.interestCategory).label}
+          </span>
           <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${statusMeta(lead.status).cls}`}>
             {statusMeta(lead.status).label}
           </span>
@@ -87,10 +177,12 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
           ))}
         </div>
 
-        {lead.notes && (
+        {lead.interest && (
           <div className="mt-4">
-            <h4 className="mb-2 text-[13px] font-semibold">Notes</h4>
-            <p className="rounded-lg bg-[#faf9fd] px-3 py-2.5 text-[13px] text-[#3a3950]">{lead.notes}</p>
+            <h4 className="mb-2 text-[13px] font-semibold">Interest</h4>
+            <p className="rounded-lg bg-[#faf9fd] px-3 py-2.5 text-[13px] text-[#3a3950]">
+              {lead.interestCategory} — {lead.interest}
+            </p>
           </div>
         )}
 
@@ -98,6 +190,176 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
           {isAdmin
             ? "Every lead has exactly one owner. Only an admin can change it."
             : `Owner locked. This lead stays with ${lead.assignedTo?.name || "its owner"} unless an admin reassigns it.`}
+        </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <h4 className="mb-2.5 text-[13px] font-semibold">Edit lead</h4>
+          <div className="grid gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                  Interest category
+                </label>
+                <select
+                  value={form.interestCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">Not set</option>
+                  {Object.entries(CATEGORY_META).map(([key, m]) => (
+                    <option key={key} value={key}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                  Interest
+                </label>
+                <select
+                  value={form.interest}
+                  onChange={(e) => setField("interest", e.target.value)}
+                  disabled={!form.interestCategory}
+                  className={`${inputCls} disabled:cursor-not-allowed disabled:bg-page disabled:text-mut`}
+                >
+                  <option value="">Not set</option>
+                  {(INTEREST_OPTIONS[form.interestCategory] || []).map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => setField("status", e.target.value)}
+                className={inputCls}
+              >
+                {Object.entries(STATUS_META).map(([key, m]) => (
+                  <option key={key} value={key}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                Next follow up date
+              </label>
+              <input
+                type="datetime-local"
+                value={form.nextFollowUp}
+                onChange={(e) => setField("nextFollowUp", e.target.value)}
+                className={inputCls}
+              />
+            </div>
+
+            {isAdmin && (
+              <>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setField("name", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      Mobile
+                    </label>
+                    <input
+                      type="text"
+                      value={form.mobile}
+                      onChange={(e) => setField("mobile", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      Email
+                    </label>
+                    <input
+                      type="text"
+                      value={form.email}
+                      onChange={(e) => setField("email", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      Group joined
+                    </label>
+                    <input
+                      type="text"
+                      value={form.groupJoined}
+                      onChange={(e) => setField("groupJoined", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={form.city}
+                      onChange={(e) => setField("city", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      value={form.state}
+                      onChange={(e) => setField("state", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="mb-1 block text-[11.5px] font-medium text-mut">
+                Remarks
+              </label>
+              <textarea
+                rows="3"
+                value={form.remarks}
+                onChange={(e) => setField("remarks", e.target.value)}
+                placeholder="Add a note about this lead..."
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
         </div>
 
         {isAdmin && (
