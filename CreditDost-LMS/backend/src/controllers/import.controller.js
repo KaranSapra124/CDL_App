@@ -56,8 +56,6 @@ function normalizeMobile(value) {
 
 // @desc   Import leads from an uploaded xlsx/xls/csv file (admin only)
 // @route  POST /api/leads/import
-const MAX_IMPORT_ROWS = 50;
-
 export const importLeads = async (req, res) => {
   try {
     if (!req.file) {
@@ -78,7 +76,7 @@ export const importLeads = async (req, res) => {
     }
 
     const totalRowsInFile = allRows.length;
-    const rows = allRows.slice(-MAX_IMPORT_ROWS);
+    const rows = allRows;
 
     const mapped = {};
     for (const key of Object.keys(rows[0])) {
