@@ -122,6 +122,12 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
     ["Source", lead.source || "—"],
     ["City", lead.city || "—"],
     ["State", lead.state || "—"],
+    [
+      "Re-imported",
+      lead.importCount > 1
+        ? `×${lead.importCount}${lead.lastImportedAt ? ` · last ${formatDateTime(lead.lastImportedAt)}` : ""}`
+        : "—",
+    ],
     ["Next call", lead.nextFollowUp ? formatDateTime(lead.nextFollowUp) : "—"],
     ["Created", new Date(lead.createdAt).toLocaleString("en-IN")],
     ["Last updated", new Date(lead.updatedAt).toLocaleString("en-IN")],
@@ -137,6 +143,12 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
       ) : (
         <span className="text-red-600">Not assigned</span>
       ),
+    ],
+    [
+      "Added by",
+      lead.createdBy
+        ? `${lead.createdBy.name}${lead.createdBy.staffCode ? ` (${lead.createdBy.staffCode})` : ""}`
+        : "Sheet import",
     ],
   ];
 

@@ -3,6 +3,7 @@ import { apiFetch } from "../lib/api";
 import { statusMeta, categoryMeta, STATUS_META, CATEGORY_META } from "../lib/status";
 import { timeAgo, initials } from "../lib/format";
 import LeadDrawer from "../components/LeadDrawer";
+import AddLeadModal from "../components/AddLeadModal";
 import { getAuth } from "../lib/auth";
 
 const PAGE_SIZES = [10, 25, 50];
@@ -24,6 +25,8 @@ export default function Leads() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
   const [open, setOpen] = useState(null);
+  const [tab, setTab] = useState("all");
+  const [showAdd, setShowAdd] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 350);
@@ -38,8 +41,9 @@ export default function Leads() {
     if (category) params.set("category", category);
     if (status) params.set("status", status);
     if (owner) params.set("owner", owner);
+    if (tab === "staff") params.set("createdByRole", "staff");
     return params.toString();
-  }, [page, pageSize, debouncedQ, category, status, owner]);
+  }, [page, pageSize, debouncedQ, category, status, owner, tab]);
 
   const load = useCallback(() => {
     apiFetch(`/leads?${query}`)
@@ -86,14 +90,48 @@ export default function Leads() {
           <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
           <p className="mb-5 mt-0.5 text-[13px] text-mut">
             {isAdmin
-              ? "Every lead has exactly one owner. Only an admin can change it."
+              ? tab === "staff"
+                ? "Leads added manually by staff members — see who added whom."
+                : "Every lead has exactly one owner. Only an admin can change it."
               : "Showing only the leads assigned to you."}
           </p>
         </div>
-        <span className="whitespace-nowrap rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-semibold text-mut">
-          {total} total leads
-        </span>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-dark"
+          >
+            + Add Lead
+          </button>
+          <span className="whitespace-nowrap rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-semibold text-mut">
+            {tab === "staff" ? `${total} staff-created leads` : `${total} total leads`}
+          </span>
+        </div>
       </div>
+
+      {isAdmin && (
+        <div className="mb-3.5 flex gap-1.5">
+          {[
+            ["all", "All Leads"],
+            ["staff", "Staff Created Leads"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setTab(key);
+                resetPaging();
+              }}
+              className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ${
+                tab === key
+                  ? "bg-primary text-white"
+                  : "border border-line bg-white text-mut hover:text-primary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
         <input
@@ -171,7 +209,15 @@ export default function Leads() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-[#fbfbfd]">
-                    {["#", "Lead", "Interest", "Status", "Owner", "Last activity"].map(
+                    {[
+                      "#",
+                      "Lead",
+                      "Interest",
+                      "Status",
+                      "Owner",
+                      ...(tab === "staff" ? ["Added by"] : []),
+                      "Last activity",
+                    ].map(
                       (h) => (
                         <th
                           key={h}
@@ -195,7 +241,21 @@ export default function Leads() {
                           {(page - 1) * pageSize + i + 1}
                         </td>
                         <td className="px-3 py-2.5">
-                          {l.name}
+                          <span className="inline-flex items-center gap-1.5">
+                            {l.name}
+                            {l.importCount > 1 && (
+                              <span
+                                title={
+                                  l.lastImportedAt
+                                    ? `Re-imported on ${new Date(l.lastImportedAt).toLocaleString("en-IN")}`
+                                    : "Re-imported"
+                                }
+                                className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-700"
+                              >
+                                ↻ ×{l.importCount}
+                              </span>
+                            )}
+                          </span>
                           <small className="block text-[11.5px] text-mut">
                             {l.mobile} · {l.city || l.state || "—"}
                           </small>
@@ -225,12 +285,19 @@ export default function Leads() {
                             <span className="text-[13px] text-red-600">Unassigned</span>
                           )}
                         </td>
+                        {tab === "staff" && (
+                          <td className="px-3 py-2.5 text-[13px]">
+                            {l.createdBy
+                              ? `${l.createdBy.name}${l.createdBy.staffCode ? ` (${l.createdBy.staffCode})` : ""}`
+                              : "—"}
+                          </td>
+                        )}
                         <td className="px-3 py-2.5 text-[13px]">{timeAgo(l.updatedAt)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6">
+                      <td colSpan={tab === "staff" ? 7 : 6}>
                         <div className="py-8 text-center text-[13px] text-mut">
                           No leads match these filters.
                         </div>
@@ -309,6 +376,18 @@ export default function Leads() {
           ? "Click any row to open the lead and (re)assign it to a relationship manager."
           : "Click any row to view your lead details."}
       </p>
+
+      {showAdd && (
+        <AddLeadModal
+          managers={managers}
+          isAdmin={isAdmin}
+          onClose={() => setShowAdd(false)}
+          onCreated={() => {
+            setShowAdd(false);
+            load();
+          }}
+        />
+      )}
 
       <LeadDrawer
         lead={open}

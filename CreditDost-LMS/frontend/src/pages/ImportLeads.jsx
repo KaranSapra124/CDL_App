@@ -179,7 +179,7 @@ export default function ImportLeads() {
                 <b>{result.autoAssigned}</b>
               </div>
               <div className="flex justify-between">
-                <span className="text-mut">Existing updated</span>
+                <span className="text-mut">Re-imported (kept with current RM)</span>
                 <b>{result.updatedExisting}</b>
               </div>
               <div className="flex justify-between">
