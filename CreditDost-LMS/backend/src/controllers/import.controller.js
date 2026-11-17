@@ -1,5 +1,6 @@
 import SheetLead from "../models/SheetLead.js";
 import XLSX from "xlsx";
+import { assignLeadsRoundRobin } from "../utils/roundRobin.js";
 
 const HEADER_MAP = {
   date: "date",
@@ -140,7 +141,16 @@ export const importLeads = async (req, res) => {
       });
     });
 
-    const result = await SheetLead.bulkWrite(ops);
+    const result = ops.length ? await SheetLead.bulkWrite(ops) : null;
+
+    const upsertedIds = result?.upsertedIds ?? {};
+    const newLeadIds = Object.keys(upsertedIds)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((i) => upsertedIds[String(i)]);
+
+    const { assignments, skipped: unassignedSkipped } =
+      await assignLeadsRoundRobin(newLeadIds);
 
     res.status(200).json({
       success: true,
@@ -148,10 +158,12 @@ export const importLeads = async (req, res) => {
         fileName: req.file.originalname,
         totalRowsInFile,
         processedRows: rows.length,
-        newLeads: result.upsertedCount,
-        updatedExisting: result.modifiedCount,
+        newLeads: result ? result.upsertedCount : 0,
+        updatedExisting: result ? result.modifiedCount : 0,
         invalidRows: invalid,
         errors,
+        autoAssigned: assignments.size,
+        unassignedSkipped,
       },
     });
   } catch (error) {
