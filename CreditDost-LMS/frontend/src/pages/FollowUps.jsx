@@ -7,43 +7,14 @@ import LeadDrawer from "../components/LeadDrawer";
 import { getAuth } from "../lib/auth";
 
 const CLOSED_STATUSES = ["Closed", "Sale Closed", "Not Interested"];
-const CALL_BACK_HOURS = 3;
-const IN_PROGRESS_HOURS = 24;
 const PAGE_SIZES = [10, 25, 50];
 
-const dueAt = (lead) => {
-  if (lead.nextFollowUp) return new Date(lead.nextFollowUp).getTime();
-  const base = new Date(lead.updatedAt || lead.createdAt).getTime();
-  const hours =
-    lead.interest === "Call Back" ||
-    lead.interestCategory === "Follow Up" ||
-    lead.status === "Not Contacted"
-      ? CALL_BACK_HOURS
-      : IN_PROGRESS_HOURS;
-  return base + hours * 3600000;
-};
+const dueAt = (lead) => new Date(lead.nextFollowUp).getTime();
 
-const dueLabel = (lead, due, now) => {
-  if (lead.nextFollowUp) {
-    return due <= now
-      ? `Overdue · ${formatDateTime(lead.nextFollowUp)}`
-      : `Due ${formatDateTime(lead.nextFollowUp)}`;
-  }
-  const diff = due - now;
-  if (diff < 0) {
-    const mins = Math.floor(Math.abs(diff) / 60000);
-    if (mins < 60) return `Overdue by ${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `Overdue by ${hrs}h`;
-    return `Overdue by ${Math.floor(hrs / 24)}d`;
-  }
-  if (diff < 3600000) return `Due in ${Math.max(1, Math.floor(diff / 60000))}m`;
-  if (diff < 86400000) return `Due in ${Math.floor(diff / 3600000)}h`;
-  return `Due ${new Date(due).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  })}`;
-};
+const dueLabel = (lead, due, now) =>
+  due <= now
+    ? `Overdue · ${formatDateTime(lead.nextFollowUp)}`
+    : `Due ${formatDateTime(lead.nextFollowUp)}`;
 
 const dueCls = (due, now) => {
   const diff = due - now;
@@ -109,20 +80,15 @@ export default function FollowUps() {
     return () => clearInterval(id);
   }, []);
 
-  const tasks = useMemo(() => {
-    const list = leads
-      .filter((l) => !CLOSED_STATUSES.includes(l.status))
-      .filter(
-        (l) =>
-          l.interest === "Call Back" ||
-          l.interestCategory === "Follow Up" ||
-          l.status === "Work In Progress" ||
-          l.status === "Not Contacted"
-      )
-      .map((l) => ({ ...l, due: dueAt(l) }));
-
-    return list.sort((a, b) => a.due - b.due);
-  }, [leads]);
+  const tasks = useMemo(
+    () =>
+      leads
+        .filter((l) => !CLOSED_STATUSES.includes(l.status))
+        .filter((l) => l.nextFollowUp)
+        .map((l) => ({ ...l, due: dueAt(l) }))
+        .sort((a, b) => a.due - b.due),
+    [leads]
+  );
 
   const counts = useMemo(() => {
     const overdue = tasks.filter((t) => t.due <= now).length;
@@ -222,8 +188,8 @@ export default function FollowUps() {
       <h1 className="text-2xl font-bold tracking-tight">Follow Ups</h1>
       <p className="mb-5 mt-0.5 text-[13px] text-mut">
         {isAdmin
-          ? "Every lead that still needs a call, overdue ones first."
-          : "Your daily task list, with overdue calls first."}
+          ? "Leads with a scheduled next call date, overdue ones first."
+          : "Your scheduled calls, with overdue ones first."}
       </p>
 
       {error && (
@@ -266,13 +232,16 @@ export default function FollowUps() {
       <div className="overflow-hidden rounded-xl border border-line bg-white">
         {pageItems.length ? (
           <div className="divide-y divide-[#f1f0f6]">
-            {pageItems.map((l) => (
+            {pageItems.map((l, i) => (
               <div key={l._id}>
                 <div className="flex flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-[#faf7ff]">
                   <div
                     onClick={() => setOpen(l)}
                     className="flex min-w-[220px] flex-1 cursor-pointer items-center gap-3"
                   >
+                    <span className="w-5 flex-none text-right text-[12px] font-semibold text-mut">
+                      {start + i + 1}
+                    </span>
                     <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-primary-soft text-[11px] font-bold text-primary">
                       {initials(l.name)}
                     </span>
@@ -447,10 +416,9 @@ export default function FollowUps() {
       </div>
 
       <p className="mt-2.5 text-xs text-mut">
-        Schedule a next call date on any lead. Without one, Call Back and Not
-        Contacted leads are due 3 hours after the last update and work in
-        progress leads after 24 hours. Closing a lead or marking it Not
-        Interested clears it from this list.
+        A lead appears here only after an owner or admin schedules a next call
+        date for it. Closing a lead or marking it Not Interested removes it
+        from this list.
       </p>
 
       <LeadDrawer

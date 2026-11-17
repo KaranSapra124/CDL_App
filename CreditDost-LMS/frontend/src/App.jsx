@@ -5,7 +5,6 @@ import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import FollowUps from "./pages/FollowUps";
 import ImportLeads from "./pages/ImportLeads";
-import Placeholder from "./pages/Placeholder";
 import { getAuth, clearAuth } from "./lib/auth";
 
 function RequireAuth({ children }) {
@@ -55,16 +54,6 @@ export default function App() {
           <Route path="/leads" element={<Leads />} />
           <Route path="/import" element={<ImportLeads />} />
           <Route path="/follow-ups" element={<FollowUps />} />
-          <Route
-            path="/staff"
-            element={
-              <Placeholder
-                icon="📊"
-                title="Staff Performance"
-                description="Built from logged calls and attributed payments only."
-              />
-            }
-          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

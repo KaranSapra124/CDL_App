@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch, apiUpload } from "../lib/api";
+import { apiFetch, apiUpload, apiDownload } from "../lib/api";
 import { statusMeta } from "../lib/status";
-import { timeAgo, initials } from "../lib/format";
+import { initials } from "../lib/format";
 import { toast } from "../lib/toast";
 
 export default function ImportLeads() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [result, setResult] = useState(null);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,16 +58,26 @@ export default function ImportLeads() {
     }
   };
 
-  const selectCls =
-    "rounded-lg border border-line bg-white px-2.5 py-2 text-[13px] focus:border-primary focus:outline-none";
+  const handleDownloadSample = async () => {
+    setDownloading(true);
+    try {
+      await apiDownload("/leads/import/sample", "leads-sample.xlsx");
+      toast("Sample file downloaded");
+    } catch (err) {
+      toast(err.message || "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-[1500px]">
       <h1 className="text-2xl font-bold tracking-tight">Import Leads</h1>
       <p className="mb-5 mt-0.5 text-[13px] text-mut">
-        Upload a leads xlsx file. Only the <b>last 50 rows</b> of the file are
-        imported for now. Duplicates are matched by mobile number, so
-        re-importing is always safe.
+        Upload a leads xlsx file. All rows are imported and new leads are
+        auto-assigned to relationship managers in round-robin order.
+        Duplicates are matched by mobile number, so re-importing is always
+        safe.
       </p>
 
       <div className="grid gap-3.5 lg:grid-cols-[1.2fr_1fr]">
@@ -114,13 +125,22 @@ export default function ImportLeads() {
               onChange={(e) => pickFile(e.target.files?.[0])}
             />
           </div>
-          <button
-            onClick={handleImport}
-            disabled={importing || !file}
-            className="mt-3 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {importing ? "Importing..." : "Import leads"}
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleImport}
+              disabled={importing || !file}
+              className="rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {importing ? "Importing..." : "Import leads"}
+            </button>
+            <button
+              onClick={handleDownloadSample}
+              disabled={downloading}
+              className="rounded-lg border border-line bg-white px-4 py-2 text-[13px] font-semibold text-mut transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {downloading ? "Downloading..." : "Download sample file"}
+            </button>
+          </div>
           <p className="mt-3 text-xs text-mut">
             The file must contain <b>Name</b> and <b>Mobile</b> columns.
             Recognised columns: Date, Source, Name, Email, Mobile, WhatsApp
@@ -141,7 +161,7 @@ export default function ImportLeads() {
                 <b>{result.totalRowsInFile}</b>
               </div>
               <div className="flex justify-between">
-                <span className="text-mut">Processed (last 50)</span>
+                <span className="text-mut">Rows processed</span>
                 <b>{result.processedRows}</b>
               </div>
               <div className="flex justify-between">

@@ -50,6 +50,7 @@ export default function Dashboard() {
     .filter(
       (l) =>
         !l.assignedTo ||
+        l.status === "New Lead" ||
         l.status === "Work In Progress" ||
         l.status === "Not Contacted" ||
         l.interestCategory === "Follow Up"

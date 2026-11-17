@@ -27,14 +27,6 @@ const ICON_PATHS = {
       <path d="M14.05 6A5 5 0 0 1 18 10" />
     </>
   ),
-  staff: (
-    <>
-      <path d="M3 3v18h18" />
-      <path d="M7 16v-5" />
-      <path d="M12 16V8" />
-      <path d="M17 16v-9" />
-    </>
-  ),
   import: (
     <>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -65,7 +57,6 @@ const TABS = [
   { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { to: "/leads", label: "All Leads", icon: "leads" },
   { to: "/follow-ups", label: "Follow Ups", icon: "followups" },
-  { to: "/staff", label: "Staff Performance", icon: "staff", adminOnly: true },
   { to: "/import", label: "Import Leads", icon: "import", adminOnly: true },
 ];
 

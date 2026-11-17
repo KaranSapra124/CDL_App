@@ -21,7 +21,7 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
         groupJoined: lead.groupJoined || "",
         interestCategory: lead.interestCategory || "",
         interest: lead.interest || "",
-        status: lead.status || "Work In Progress",
+        status: lead.status || "New Lead",
         nextFollowUp: toDateTimeInput(lead.nextFollowUp),
         remarks: lead.remarks || "",
       });

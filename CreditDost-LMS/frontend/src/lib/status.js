@@ -9,6 +9,7 @@ export const INTEREST_OPTIONS = {
 };
 
 export const STATUS_META = {
+  "New Lead": { label: "New Lead", cls: "bg-indigo-50 text-indigo-700" },
   "Not Contacted": { label: "Not Contacted", cls: "bg-rose-50 text-rose-700" },
   "Not Interested": { label: "Not Interested", cls: "bg-red-50 text-red-700" },
   "Work In Progress": { label: "Work In Progress", cls: "bg-blue-50 text-blue-700" },
