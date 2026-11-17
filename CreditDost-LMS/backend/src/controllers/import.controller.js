@@ -1,6 +1,7 @@
 import SheetLead from "../models/SheetLead.js";
 import XLSX from "xlsx";
 import { assignLeadsRoundRobin, getRoundRobinStaff } from "../utils/roundRobin.js";
+import { normalizeMobile } from "../utils/mobile.js";
 
 const HEADER_MAP = {
   date: "date",
@@ -54,13 +55,6 @@ function parseDate(value) {
   return Number.isNaN(d) ? null : d;
 }
 
-function normalizeMobile(value) {
-  let digits = String(value ?? "").replace(/\D/g, "");
-  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
-  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
-  return digits;
-}
-
 // @desc   Import leads from an uploaded xlsx/xls/csv file (admin only)
 // @route  POST /api/leads/import
 export const importLeads = async (req, res) => {
@@ -103,6 +97,7 @@ export const importLeads = async (req, res) => {
     const errors = [];
     const rmByOp = new Map();
     let invalid = 0;
+    const now = new Date();
 
     const staffPool = await getRoundRobinStaff();
     const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -151,8 +146,10 @@ export const importLeads = async (req, res) => {
               state: rec.state,
               groupJoined: rec.groupJoined,
               remarks: rec.remarks,
+              lastImportedAt: now,
               ...(rec.date ? { date: rec.date } : {}),
             },
+            $inc: { importCount: 1 },
             $setOnInsert: {
               status: "New Lead",
               assignedTo: null,

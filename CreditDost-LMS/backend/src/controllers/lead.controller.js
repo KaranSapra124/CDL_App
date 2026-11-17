@@ -1,6 +1,7 @@
 import SheetLead from "../models/SheetLead.js";
 import User from "../models/User.js";
 import { RM_POOL_FILTER } from "../utils/roundRobin.js";
+import { normalizeMobile } from "../utils/mobile.js";
 
 const isAdmin = (user) => user?.role === "admin" && user?.subRole === 'super_admin';
 
@@ -19,6 +20,7 @@ export const getLeads = async (req, res) => {
     }
     if (req.query.category) filter.interestCategory = req.query.category;
     if (req.query.status) filter.status = req.query.status;
+    if (req.query.createdByRole) filter.createdByRole = req.query.createdByRole;
     if (req.query.q?.trim()) {
       const rx = { $regex: escapeRegExp(req.query.q.trim()), $options: "i" };
       const or = [{ name: rx }, { mobile: rx }];
@@ -32,6 +34,7 @@ export const getLeads = async (req, res) => {
     if (!page) {
       const leads = await SheetLead.find(filter)
         .populate("assignedTo", "name email role staffCode")
+        .populate("createdBy", "name staffCode")
         .sort({ createdAt: -1 });
       return res
         .status(200)
@@ -43,6 +46,7 @@ export const getLeads = async (req, res) => {
       SheetLead.countDocuments(filter),
       SheetLead.find(filter)
         .populate("assignedTo", "name email role staffCode")
+        .populate("createdBy", "name staffCode")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -70,10 +74,9 @@ export const getLead = async (req, res) => {
       ? { _id: req.params.id }
       : { _id: req.params.id, assignedTo: req.user._id };
 
-    const lead = await SheetLead.findOne(filter).populate(
-      "assignedTo",
-      "name email role staffCode"
-    );
+    const lead = await SheetLead.findOne(filter)
+      .populate("assignedTo", "name email role staffCode")
+      .populate("createdBy", "name staffCode");
     if (!lead) {
       return res
         .status(404)
@@ -85,14 +88,15 @@ export const getLead = async (req, res) => {
   }
 };
 
-// @desc   Create lead (admin only)
+// @desc   Create a lead manually. Staff create it under themselves;
+//         admin can optionally pick an owner
 // @route  POST /api/leads
 export const createLead = async (req, res) => {
   try {
     const {
       name,
       email,
-      mobile,
+      mobile: rawMobile,
       source,
       city,
       state,
@@ -100,7 +104,22 @@ export const createLead = async (req, res) => {
       remarks,
       interestCategory,
       interest,
+      assignedTo,
     } = req.body;
+
+    if (!name || !String(name).trim()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Name is required" });
+    }
+
+    const mobile = normalizeMobile(rawMobile);
+    if (!mobile || mobile.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid 10-digit mobile number is required",
+      });
+    }
 
     const existing = await SheetLead.findOne({ mobile });
     if (existing) {
@@ -109,8 +128,41 @@ export const createLead = async (req, res) => {
         .json({ success: false, message: "Lead with this mobile already exists" });
     }
 
+    const isAdminUser = isAdmin(req.user);
+    let ownerId = null;
+
+    if (isAdminUser) {
+      if (assignedTo) {
+        const target = await User.findOne({
+          _id: assignedTo,
+          ...RM_POOL_FILTER,
+        }).select("_id");
+        if (!target) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Leads can only be assigned to an active relationship manager with an RM staff code",
+          });
+        }
+        ownerId = target._id;
+      }
+    } else {
+      const me = await User.findOne({
+        _id: req.user._id,
+        ...RM_POOL_FILTER,
+      }).select("_id");
+      if (!me) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only an active relationship manager with an RM staff code can add leads",
+        });
+      }
+      ownerId = me._id;
+    }
+
     const lead = await SheetLead.create({
-      name,
+      name: String(name).trim(),
       email,
       mobile,
       source,
@@ -118,9 +170,17 @@ export const createLead = async (req, res) => {
       state,
       groupJoined,
       remarks,
-      interestCategory,
-      interest,
+      interestCategory: interestCategory || null,
+      interest: interest || null,
+      assignedTo: ownerId,
+      assignedAt: ownerId ? new Date() : null,
+      createdBy: req.user._id,
+      createdByRole: isAdminUser ? "admin" : "staff",
+      createdVia: "manual",
     });
+
+    await lead.populate("assignedTo createdBy", "name email role staffCode");
+
     res.status(201).json({ success: true, data: lead });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

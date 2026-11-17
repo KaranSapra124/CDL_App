@@ -52,6 +52,29 @@ const sheetLeadSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    importCount: {
+      type: Number,
+      default: 1,
+    },
+    lastImportedAt: {
+      type: Date,
+      default: null,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    createdByRole: {
+      type: String,
+      enum: ["admin", "staff"],
+      default: null,
+    },
+    createdVia: {
+      type: String,
+      enum: ["import", "manual"],
+      default: "import",
+    },
     interestCategory: {
       type: String,
       enum: ["Interested In", "Follow Up"],

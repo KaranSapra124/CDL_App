@@ -19,7 +19,7 @@ const router = Router();
 
 router.use(protect);
 
-router.route("/").get(getLeads).post(adminOnly, createLead);
+router.route("/").get(getLeads).post(createLead);
 router.post("/import", adminOnly, upload.single("file"), importLeads);
 router.get("/import/sample", adminOnly, downloadImportSample);
 router.get("/imported", getImportedLeads);
