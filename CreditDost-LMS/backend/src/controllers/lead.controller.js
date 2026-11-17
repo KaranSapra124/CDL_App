@@ -39,13 +39,15 @@ export const getLeads = async (req, res) => {
     }
 
     const limit = Math.min(Number(req.query.limit) || 10, 100);
-    const total = await SheetLead.countDocuments(filter);
+    const [total, leads] = await Promise.all([
+      SheetLead.countDocuments(filter),
+      SheetLead.find(filter)
+        .populate("assignedTo", "name email role staffCode")
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+    ]);
     const pages = Math.max(1, Math.ceil(total / limit));
-    const leads = await SheetLead.find(filter)
-      .populate("assignedTo", "name email role staffCode")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
 
     res.status(200).json({
       success: true,
@@ -166,8 +168,6 @@ const CATEGORY_INTERESTS = {
   "Follow Up": ["Call Back"],
 };
 
-const TERMINAL_STATUSES = ["Closed", "Sale Closed", "Not Interested"];
-
 // @desc   Update lead (staff can edit their own, limited fields; admin full access)
 // @route  PUT /api/leads/:id
 export const updateLead = async (req, res) => {
@@ -231,16 +231,7 @@ export const updateLead = async (req, res) => {
       });
     }
 
-    const merged = {
-      interestCategory: existing.interestCategory,
-      interest: existing.interest,
-      status: existing.status,
-      ...updates,
-    };
-
-    if (TERMINAL_STATUSES.includes(merged.status)) {
-      updates.nextFollowUp = null;
-    } else if (updates.nextFollowUp !== undefined) {
+    if (updates.nextFollowUp !== undefined) {
       if (updates.nextFollowUp === null) {
         updates.nextFollowUp = null;
       } else {

@@ -78,6 +78,7 @@ const sheetLeadSchema = new mongoose.Schema(
         "Not Contacted",
         "Not Interested",
         "Work In Progress",
+        "Active DSA",
         "Closed",
         "Sale Closed",
       ],

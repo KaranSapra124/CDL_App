@@ -1,6 +1,6 @@
 import SheetLead from "../models/SheetLead.js";
 import XLSX from "xlsx";
-import { assignLeadsRoundRobin } from "../utils/roundRobin.js";
+import { assignLeadsRoundRobin, getRoundRobinStaff } from "../utils/roundRobin.js";
 
 const HEADER_MAP = {
   date: "date",
@@ -24,6 +24,12 @@ const HEADER_MAP = {
   remarks: "remarks",
   remark: "remarks",
   notes: "remarks",
+  rm: "rmName",
+  "rm name": "rmName",
+  owner: "rmName",
+  "assigned to": "rmName",
+  "assigned rm": "rmName",
+  "relationship manager": "rmName",
 };
 
 function mapHeader(key) {
@@ -95,7 +101,22 @@ export const importLeads = async (req, res) => {
 
     const ops = [];
     const errors = [];
+    const rmByOp = new Map();
     let invalid = 0;
+
+    const staffPool = await getRoundRobinStaff();
+    const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    const findStaffByName = (input) => {
+      const n = norm(input);
+      if (!n) return null;
+      return (
+        staffPool.find((s) => norm(s.name) === n) ||
+        staffPool.find((s) => norm(s.staffCode) === n) ||
+        staffPool.find((s) => norm(s.name).startsWith(n)) ||
+        staffPool.find((s) => norm(s.name).includes(n)) ||
+        null
+      );
+    };
 
     rows.forEach((row, i) => {
       const rec = {};
@@ -103,6 +124,7 @@ export const importLeads = async (req, res) => {
         const v = row[key];
         if (field === "date") rec.date = parseDate(v);
         else if (field === "mobile") rec.mobile = normalizeMobile(v);
+        else if (field === "rmName") rec.rmName = String(v ?? "").trim();
         else rec[field] = String(v ?? "").trim();
       }
 
@@ -113,6 +135,8 @@ export const importLeads = async (req, res) => {
         }
         return;
       }
+
+      const matchedRm = findStaffByName(rec.rmName);
 
       ops.push({
         updateOne: {
@@ -138,18 +162,54 @@ export const importLeads = async (req, res) => {
           upsert: true,
         },
       });
+
+      rmByOp.set(ops.length - 1, {
+        rowNumber: i + 2,
+        input: rec.rmName,
+        staffId: matchedRm?._id ?? null,
+      });
     });
 
     const result = ops.length ? await SheetLead.bulkWrite(ops) : null;
 
     const upsertedIds = result?.upsertedIds ?? {};
-    const newLeadIds = Object.keys(upsertedIds)
+    const upsertedEntries = Object.keys(upsertedIds)
       .map(Number)
       .sort((a, b) => a - b)
-      .map((i) => upsertedIds[String(i)]);
+      .map((i) => [i, upsertedIds[String(i)]]);
+
+    const explicitAssignments = [];
+    const roundRobinIds = [];
+    for (const [opIndex, leadId] of upsertedEntries) {
+      const info = rmByOp.get(opIndex);
+      if (info?.staffId) {
+        explicitAssignments.push({ leadId, staffId: info.staffId });
+      } else {
+        if (info?.input && errors.length < 10) {
+          errors.push(
+            `Row ${info.rowNumber}: RM name "${info.input}" not found, assigned via round robin`
+          );
+        }
+        roundRobinIds.push(leadId);
+      }
+    }
+
+    let assignedBySheet = 0;
+    if (explicitAssignments.length) {
+      const assignedAt = new Date();
+      await SheetLead.bulkWrite(
+        explicitAssignments.map(({ leadId, staffId }) => ({
+          updateOne: {
+            filter: { _id: leadId },
+            update: { $set: { assignedTo: staffId, assignedAt } },
+          },
+        }))
+      );
+      assignedBySheet = explicitAssignments.length;
+    }
 
     const { assignments, skipped: unassignedSkipped } =
-      await assignLeadsRoundRobin(newLeadIds);
+      await assignLeadsRoundRobin(roundRobinIds);
 
     res.status(200).json({
       success: true,
@@ -161,6 +221,7 @@ export const importLeads = async (req, res) => {
         updatedExisting: result ? result.modifiedCount : 0,
         invalidRows: invalid,
         errors,
+        assignedBySheet,
         autoAssigned: assignments.size,
         unassignedSkipped,
       },
@@ -185,6 +246,7 @@ export const downloadImportSample = async (req, res) => {
       "State",
       "Group Joined",
       "Remarks",
+      "RM Name",
     ];
     const rows = [
       [
@@ -198,6 +260,7 @@ export const downloadImportSample = async (req, res) => {
         "Maharashtra",
         "Yes",
         "Interested in credit score repair",
+        "RM-4",
       ],
       [
         "2026-11-17",
@@ -210,6 +273,7 @@ export const downloadImportSample = async (req, res) => {
         "Madhya Pradesh",
         "No",
         "Requested a call back",
+        "",
       ],
     ];
 
@@ -225,6 +289,7 @@ export const downloadImportSample = async (req, res) => {
       { wch: 16 },
       { wch: 14 },
       { wch: 34 },
+      { wch: 14 },
     ];
 
     const wb = XLSX.utils.book_new();
