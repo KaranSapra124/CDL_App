@@ -74,13 +74,14 @@ const sheetLeadSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        "New Lead",
         "Not Contacted",
         "Not Interested",
         "Work In Progress",
         "Closed",
         "Sale Closed",
       ],
-      default: "Work In Progress",
+      default: "New Lead",
     },
     nextFollowUp: {
       type: Date,

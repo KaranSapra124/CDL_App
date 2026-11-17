@@ -4,26 +4,25 @@ import RoundRobinState from "../models/RoundRobinState.js";
 
 const STATE_KEY = "sheet_lead_round_robin";
 
+export const RM_POOL_FILTER = {
+  subRole: "relationship_manager",
+  staffCode: { $exists: true, $ne: "", $regex: /^RM/i },
+  isActive: true,
+  isDeleted: false,
+};
+
 export const getRoundRobinStaff = async (excludeStaffIds = []) => {
   const staff = await User.find({
-    subRole: "staff",
-    isActive: true,
-    isDeleted: false,
+    ...RM_POOL_FILTER,
     ...(excludeStaffIds.length ? { _id: { $nin: excludeStaffIds } } : {}),
   })
     .select("_id name staffCode")
     .lean();
 
-  const rank = (s) => (s.staffCode ? [0, s.staffCode, s.name] : [1, "", s.name]);
-  return staff.sort((a, b) => {
-    const [aGroup, aCode, aName] = rank(a);
-    const [bGroup, bCode, bName] = rank(b);
-    return (
-      aGroup - bGroup ||
-      aCode.localeCompare(bCode) ||
-      aName.localeCompare(bName)
-    );
-  });
+  return staff.sort((a, b) =>
+    (a.staffCode || "").localeCompare(b.staffCode || "") ||
+    a.name.localeCompare(b.name)
+  );
 };
 
 // @desc   Assign leads to staff in serial round-robin order

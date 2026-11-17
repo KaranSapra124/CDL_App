@@ -12,6 +12,7 @@ import {
 import {
   importLeads,
   getImportedLeads,
+  downloadImportSample,
 } from "../controllers/import.controller.js";
 
 const router = Router();
@@ -20,6 +21,7 @@ router.use(protect);
 
 router.route("/").get(getLeads).post(adminOnly, createLead);
 router.post("/import", adminOnly, upload.single("file"), importLeads);
+router.get("/import/sample", adminOnly, downloadImportSample);
 router.get("/imported", getImportedLeads);
 router.route("/:id").get(getLead).put(updateLead).delete(adminOnly, deleteLead);
 router.route("/:id/assign").put(adminOnly, assignLead);

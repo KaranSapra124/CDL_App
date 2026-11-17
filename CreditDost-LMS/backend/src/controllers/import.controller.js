@@ -130,8 +130,7 @@ export const importLeads = async (req, res) => {
               ...(rec.date ? { date: rec.date } : {}),
             },
             $setOnInsert: {
-              status: "Work In Progress",
-              nextFollowUp: new Date(Date.now() + 24 * 3600000),
+              status: "New Lead",
               assignedTo: null,
               assignedAt: null,
             },
@@ -171,10 +170,84 @@ export const importLeads = async (req, res) => {
   }
 };
 
+// @desc   Download a sample xlsx showing the expected import format (admin only)
+// @route  GET /api/leads/import/sample
+export const downloadImportSample = async (req, res) => {
+  try {
+    const headers = [
+      "Date",
+      "Source",
+      "Name",
+      "Email",
+      "Mobile",
+      "WhatsApp Number",
+      "City",
+      "State",
+      "Group Joined",
+      "Remarks",
+    ];
+    const rows = [
+      [
+        "2026-11-17",
+        "Facebook",
+        "Rahul Sharma",
+        "rahul.sharma@example.com",
+        "9876543210",
+        "9876543210",
+        "Pune",
+        "Maharashtra",
+        "Yes",
+        "Interested in credit score repair",
+      ],
+      [
+        "2026-11-17",
+        "Google",
+        "Priya Singh",
+        "priya.singh@example.com",
+        "9123456780",
+        "9123456780",
+        "Indore",
+        "Madhya Pradesh",
+        "No",
+        "Requested a call back",
+      ],
+    ];
+
+    const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    sheet["!cols"] = [
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 28 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 34 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, "Leads");
+
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="leads-sample.xlsx"'
+    );
+    res.send(buf);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc   List imported leads (staff see only their own)
 // @route  GET /api/leads/imported
-export const getImportedLeads = async (req, res) => {
-  try {
+export const getImportedLeads = async (req, res) => {  try {
     const filter = req.user.role === "admin" ? {} : { assignedTo: req.user._id };
     const leads = await SheetLead.find(filter)
       .populate("assignedTo", "name staffCode")

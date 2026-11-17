@@ -1,17 +1,60 @@
 import SheetLead from "../models/SheetLead.js";
+import User from "../models/User.js";
+import { RM_POOL_FILTER } from "../utils/roundRobin.js";
 
 const isAdmin = (user) => user?.role === "admin" && user?.subRole === 'super_admin';
 
-// @desc   Get all leads (staff see only their own)
+const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// @desc   Get all leads (staff see only their own). Supports server-side
+//         pagination + filters via ?page&limit&q&category&status&owner
 // @route  GET /api/leads
 export const getLeads = async (req, res) => {
-
   try {
-    const filter = isAdmin(req.user) ? {} : { assignedTo: req.user._id };
+    const filter = {};
+    if (!isAdmin(req.user)) {
+      filter.assignedTo = req.user._id;
+    } else if (req.query.owner) {
+      filter.assignedTo = req.query.owner;
+    }
+    if (req.query.category) filter.interestCategory = req.query.category;
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.q?.trim()) {
+      const rx = { $regex: escapeRegExp(req.query.q.trim()), $options: "i" };
+      const or = [{ name: rx }, { mobile: rx }];
+      if (/^[0-9a-f]{24}$/i.test(req.query.q.trim())) {
+        or.push({ _id: req.query.q.trim() });
+      }
+      filter.$or = or;
+    }
+
+    const page = Number(req.query.page);
+    if (!page) {
+      const leads = await SheetLead.find(filter)
+        .populate("assignedTo", "name email role staffCode")
+        .sort({ createdAt: -1 });
+      return res
+        .status(200)
+        .json({ success: true, count: leads.length, data: leads });
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 10, 100);
+    const total = await SheetLead.countDocuments(filter);
+    const pages = Math.max(1, Math.ceil(total / limit));
     const leads = await SheetLead.find(filter)
       .populate("assignedTo", "name email role staffCode")
-      .sort({ createdAt: -1 });
-    res.status(200).json({ success: true, count: leads.length, data: leads });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      data: leads,
+      total,
+      page,
+      pages,
+      count: leads.length,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -75,7 +118,6 @@ export const createLead = async (req, res) => {
       remarks,
       interestCategory,
       interest,
-      nextFollowUp: new Date(Date.now() + IN_PROGRESS_HOURS * 3600000),
     });
     res.status(201).json({ success: true, data: lead });
   } catch (error) {
@@ -88,6 +130,20 @@ export const createLead = async (req, res) => {
 export const assignLead = async (req, res) => {
   try {
     const { assignedTo } = req.body;
+
+    if (assignedTo) {
+      const target = await User.findOne({
+        _id: assignedTo,
+        ...RM_POOL_FILTER,
+      }).select("_id");
+      if (!target) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Leads can only be assigned to an active relationship manager with an RM staff code",
+        });
+      }
+    }
 
     const lead = await SheetLead.findByIdAndUpdate(
       req.params.id,
@@ -111,13 +167,6 @@ const CATEGORY_INTERESTS = {
 };
 
 const TERMINAL_STATUSES = ["Closed", "Sale Closed", "Not Interested"];
-const FOLLOW_UP_HOURS = 3;
-const IN_PROGRESS_HOURS = 24;
-
-const needsFollowUp = (lead) =>
-  lead.interest === "Call Back" ||
-  lead.interestCategory === "Follow Up" ||
-  lead.status === "Not Contacted";
 
 // @desc   Update lead (staff can edit their own, limited fields; admin full access)
 // @route  PUT /api/leads/:id
@@ -204,15 +253,6 @@ export const updateLead = async (req, res) => {
         }
         updates.nextFollowUp = date;
       }
-    } else if (
-      updates.status !== undefined ||
-      updates.interest !== undefined ||
-      updates.interestCategory !== undefined
-    ) {
-      const hours = needsFollowUp(merged)
-        ? FOLLOW_UP_HOURS
-        : IN_PROGRESS_HOURS;
-      updates.nextFollowUp = new Date(Date.now() + hours * 3600000);
     }
 
     const lead = await SheetLead.findOneAndUpdate(filter, updates, {
