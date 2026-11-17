@@ -13,6 +13,7 @@ export const STATUS_META = {
   "Not Contacted": { label: "Not Contacted", cls: "bg-rose-50 text-rose-700" },
   "Not Interested": { label: "Not Interested", cls: "bg-red-50 text-red-700" },
   "Work In Progress": { label: "Work In Progress", cls: "bg-blue-50 text-blue-700" },
+  "Active DSA": { label: "Active DSA", cls: "bg-cyan-50 text-cyan-700" },
   Closed: { label: "Closed", cls: "bg-emerald-50 text-emerald-700" },
   "Sale Closed": { label: "Sale Closed", cls: "bg-teal-50 text-teal-700" },
 };

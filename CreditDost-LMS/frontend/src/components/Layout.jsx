@@ -75,6 +75,7 @@ export default function Layout() {
   
   const [open, setOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const [loadingCount, setLoadingCount] = useState(0);
 
   useEffect(() => {
     let t;
@@ -88,6 +89,12 @@ export default function Layout() {
       window.removeEventListener("app-toast", onToast);
       clearTimeout(t);
     };
+  }, []);
+
+  useEffect(() => {
+    const onLoading = (e) => setLoadingCount(e.detail?.active ?? 0);
+    window.addEventListener("app-loading", onLoading);
+    return () => window.removeEventListener("app-loading", onLoading);
   }, []);
 
   const handleLogout = () => {
@@ -192,6 +199,12 @@ export default function Layout() {
           </div>
         </div>
       </header>
+
+      {loadingCount > 0 && (
+        <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-primary-soft border-t-primary" />
+        </div>
+      )}
 
       <main className="ml-0 px-4 pb-12 pt-[70px] md:ml-[220px] md:px-6">
         <Outlet />

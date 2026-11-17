@@ -8,6 +8,7 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
   const [manager, setManager] = useState("");
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (lead) {
@@ -91,7 +92,7 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
       toast("Select a business manager first");
       return;
     }
-    setSaving(true);
+    setAssigning(true);
     try {
       const res = await apiFetch(`/leads/${lead._id}/assign`, {
         method: "PUT",
@@ -103,7 +104,7 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
     } catch (err) {
       toast(err.message || "Failed to assign lead");
     } finally {
-      setSaving(false);
+      setAssigning(false);
     }
   };
 
@@ -384,10 +385,10 @@ export default function LeadDrawer({ lead, managers, isAdmin = false, onClose, o
                 </select>
                 <button
                   onClick={handleAssign}
-                  disabled={saving}
+                  disabled={assigning}
                   className="w-full rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-dark disabled:opacity-50"
                 >
-                  {saving ? "Assigning..." : lead.assignedTo ? "Reassign" : "Assign"}
+                  {assigning ? "Assigning..." : lead.assignedTo ? "Reassign" : "Assign"}
                 </button>
               </div>
             ) : (

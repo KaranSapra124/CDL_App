@@ -6,7 +6,6 @@ import { toast } from "../lib/toast";
 import LeadDrawer from "../components/LeadDrawer";
 import { getAuth } from "../lib/auth";
 
-const CLOSED_STATUSES = ["Closed", "Sale Closed", "Not Interested"];
 const PAGE_SIZES = [10, 25, 50];
 
 const dueAt = (lead) => new Date(lead.nextFollowUp).getTime();
@@ -83,7 +82,6 @@ export default function FollowUps() {
   const tasks = useMemo(
     () =>
       leads
-        .filter((l) => !CLOSED_STATUSES.includes(l.status))
         .filter((l) => l.nextFollowUp)
         .map((l) => ({ ...l, due: dueAt(l) }))
         .sort((a, b) => a.due - b.due),
@@ -416,9 +414,9 @@ export default function FollowUps() {
       </div>
 
       <p className="mt-2.5 text-xs text-mut">
-        A lead appears here only after an owner or admin schedules a next call
-        date for it. Closing a lead or marking it Not Interested removes it
-        from this list.
+        A lead appears here once a next call date is scheduled by an owner or
+        admin — including closed leads that still have a pending date. Removing
+        the date takes it off this list.
       </p>
 
       <LeadDrawer

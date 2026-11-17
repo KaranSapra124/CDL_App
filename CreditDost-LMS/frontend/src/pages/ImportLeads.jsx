@@ -144,7 +144,9 @@ export default function ImportLeads() {
           <p className="mt-3 text-xs text-mut">
             The file must contain <b>Name</b> and <b>Mobile</b> columns.
             Recognised columns: Date, Source, Name, Email, Mobile, WhatsApp
-            number, City, State, Group Joined, Remarks.
+            number, City, State, Group Joined, Remarks, RM Name. Rows with an{" "}
+            <b>RM Name</b> go to that manager (name or staff code like RM-4);
+            blank rows are auto-assigned round robin.
           </p>
         </div>
 
@@ -167,6 +169,14 @@ export default function ImportLeads() {
               <div className="flex justify-between">
                 <span className="text-mut">New leads</span>
                 <b className="text-emerald-700">{result.newLeads}</b>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-mut">Assigned by sheet RM Name</span>
+                <b>{result.assignedBySheet}</b>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-mut">Auto-assigned (round robin)</span>
+                <b>{result.autoAssigned}</b>
               </div>
               <div className="flex justify-between">
                 <span className="text-mut">Existing updated</span>
