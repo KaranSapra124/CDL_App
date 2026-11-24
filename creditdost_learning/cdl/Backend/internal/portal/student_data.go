@@ -44,9 +44,13 @@ func (s *Store) SaveProgress(ctx context.Context, studentID, moduleID int64, wat
 	if watchedSeconds < 0 {
 		watchedSeconds = 0
 	}
+	// A lesson also counts as completed once the furthest watch position reaches 95% of the
+	// video's length (leaves room for end credits). Lessons with no known length need the explicit flag.
 	_, err = s.DB.Exec(ctx, `
 		insert into module_progress (student_id, module_id, watched_seconds, completed)
-		values ($1, $2, $3, $4)
+		select $1::bigint, $2::bigint, $3::int,
+		       $4::boolean or coalesce(m.duration_seconds > 0 and $3::int >= m.duration_seconds * 0.95, false)
+		from modules m where m.id = $2::bigint
 		on conflict (student_id, module_id) do update set
 		  watched_seconds = greatest(module_progress.watched_seconds, excluded.watched_seconds),
 		  completed       = module_progress.completed or excluded.completed,

@@ -57,6 +57,7 @@ class _LessonScreenState extends State<LessonScreen> {
         await controller.dispose();
         return;
       }
+      controller.addListener(_autoComplete);
       setState(() => _controller = controller);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -92,7 +93,21 @@ class _LessonScreenState extends State<LessonScreen> {
 
   String get _speedLabel => _speed == 1.0 ? '1x' : '${_speed}x';
 
-  Future<void> _markComplete() async {
+  /// Marks the lesson done once playback reaches 95% of the video (same rule as the server).
+  void _autoComplete() {
+    final v = _controller?.value;
+    if (v == null || _completed || _saving || _autoTried) return;
+    final total = v.duration.inMilliseconds;
+    if (total > 0 && v.position.inMilliseconds >= total * 0.95) {
+      // Try once; if it fails (e.g. offline) the position saved on exit still completes it server-side.
+      _autoTried = true;
+      _markComplete(auto: true);
+    }
+  }
+
+  bool _autoTried = false;
+
+  Future<void> _markComplete({bool auto = false}) async {
     if (_completed) return;
     setState(() => _saving = true);
     try {
@@ -101,9 +116,17 @@ class _LessonScreenState extends State<LessonScreen> {
         watchedSeconds: _controller?.value.position.inSeconds ?? m.watchedSeconds,
         completed: true,
       );
-      if (mounted) setState(() => _completed = true);
+      if (!mounted) return;
+      setState(() => _completed = true);
+      if (auto) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Lesson completed 🎉'),
+          duration: Duration(seconds: 2),
+        ));
+      }
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      // An automatic attempt fails quietly; a tap on "Mark Done" shows the reason.
+      if (mounted && !auto) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -138,6 +161,7 @@ class _LessonScreenState extends State<LessonScreen> {
   void dispose() {
     final c = _controller;
     if (c != null) {
+      c.removeListener(_autoComplete);
       // Best-effort save of the watch position. The screen is closing, so errors are ignored.
       widget.repo
           .saveProgress(m.id, watchedSeconds: c.value.position.inSeconds, completed: _completed)

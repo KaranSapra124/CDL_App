@@ -1,5 +1,5 @@
 // Types and API calls for the students module. Mirrors the Go API responses.
-import { apiGet, apiPost } from "./api";
+import { apiGet, apiPost, apiSend } from "./api";
 
 export type StudentStatus = "all" | "paid" | "unpaid" | "certified" | "suspended";
 
@@ -175,4 +175,12 @@ export function suspendStudent(studentId: number, reason: string): Promise<{ sig
 
 export function reactivateStudent(studentId: number): Promise<{ suspended: boolean }> {
   return apiPost(`/admin/students/${studentId}/reactivate`, {});
+}
+
+/**
+ * Permanently deletes a student and their enrolments, progress, tickets and certificates.
+ * Fails with 409 when the student has payment records; suspend them instead.
+ */
+export function deleteStudent(studentId: number): Promise<{ deleted: boolean; name: string }> {
+  return apiSend("DELETE", `/admin/students/${studentId}`);
 }

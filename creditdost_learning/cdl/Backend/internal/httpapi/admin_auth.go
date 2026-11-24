@@ -117,8 +117,8 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "enter a valid email")
 		return
 	}
-	if len(req.Password) < 12 {
-		writeError(w, http.StatusBadRequest, "password must be at least 12 characters")
+	if len(req.Password) < 8 {
+		writeError(w, http.StatusBadRequest, "password must be at least 8 characters")
 		return
 	}
 	if len(req.Password) > auth.MaxPasswordBytes {

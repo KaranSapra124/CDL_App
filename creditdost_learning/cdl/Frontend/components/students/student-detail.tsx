@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api";
 import { formatNumber, formatPaise, timeAgo } from "@/lib/format";
 import {
+  deleteStudent,
   getStudent,
   issueCertificate,
   reactivateStudent,
@@ -166,6 +167,37 @@ export function StudentDetail() {
               Suspend account
             </button>
           )}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              const expected = `STU-${d.profile.id}`;
+              const typed = window.prompt(
+                `Permanently delete ${d.profile.name}?\n\nThis removes their enrolments, progress, support tickets, ` +
+                  `certificates and devices. It cannot be undone. Students with payments cannot be deleted; suspend them instead.\n\n` +
+                  `Type ${expected} to confirm.`,
+              );
+              if (typed === null) return;
+              if (typed.trim().toUpperCase() !== expected) {
+                setNotice({ kind: "error", text: `Not deleted: type ${expected} exactly to confirm.` });
+                return;
+              }
+              setBusy(true);
+              try {
+                await deleteStudent(d.profile.id);
+                router.push("/students");
+              } catch (err) {
+                setNotice({
+                  kind: "error",
+                  text: err instanceof ApiError ? err.message : "Could not delete the student.",
+                });
+                setBusy(false);
+              }
+            }}
+            className="h-10 rounded-lg border border-red-600 px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+          >
+            Delete student
+          </button>
         </div>
       </div>
 

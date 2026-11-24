@@ -122,6 +122,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/students/{id}/sessions/revoke-all", s.revokeStudentSessions)
 			r.Post("/students/{id}/suspend", s.suspendStudent)
 			r.Post("/students/{id}/reactivate", s.reactivateStudent)
+			r.Delete("/students/{id}", s.deleteStudent)
 
 			r.Get("/revenue", s.revenueSummary)
 			r.Get("/transactions", s.listTransactions)

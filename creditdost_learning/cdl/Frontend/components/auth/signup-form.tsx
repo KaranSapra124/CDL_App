@@ -7,7 +7,7 @@ import { useState, type FormEvent } from "react";
 import { apiPost, type AdminUser } from "@/lib/api";
 import { Field, FormError, SubmitButton } from "./form-controls";
 
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 
 export function SignupForm() {
   const router = useRouter();
