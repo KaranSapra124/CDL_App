@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"creditdost/backend/internal/notify"
 )
 
 var (
@@ -25,6 +27,9 @@ var (
 	ErrContactMismatch  = errors.New("the email and mobile belong to two different students")
 	ErrNeedsName        = errors.New("name is required to create a new student")
 	ErrNeedsContact     = errors.New("email or mobile is required")
+	ErrAlreadySuspended = errors.New("student is already suspended")
+	ErrNotSuspended     = errors.New("student is not suspended")
+	ErrSuspended        = errors.New("student is suspended; reactivate them before enrolling")
 )
 
 type Store struct {
@@ -55,6 +60,7 @@ type ListItem struct {
 	PaidPaise         int64     `json:"paidPaise"`
 	LastActivityAt    time.Time `json:"lastActivityAt"`
 	Status            string    `json:"status"` // paid | unpaid
+	Suspended         bool      `json:"suspended"`
 }
 
 type ListResult struct {
@@ -71,6 +77,7 @@ type Summary struct {
 	Paid         int64 `json:"paid"`
 	Unpaid       int64 `json:"unpaid"`
 	Certified    int64 `json:"certified"`
+	Suspended    int64 `json:"suspended"`
 	RevenuePaise int64 `json:"revenuePaise"`
 }
 
@@ -98,7 +105,8 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 		where ($1 = 'all'
 		       or ($1 = 'paid' and enr.n > 0)
 		       or ($1 = 'unpaid' and enr.n = 0)
-		       or ($1 = 'certified' and certs.n > 0))
+		       or ($1 = 'certified' and certs.n > 0)
+		       or ($1 = 'suspended' and st.suspended_at is not null))
 		  and ($2 = '' or st.name ilike '%' || $2 || '%' or st.email ilike '%' || $2 || '%'
 		       or st.mobile like '%' || $2 || '%')
 		  and ($3::bigint = 0 or exists (select 1 from enrollments e
@@ -114,6 +122,7 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 	rows, err := s.DB.Query(ctx, `
 		select st.id, st.name, st.email, st.mobile, st.city, st.state, st.preferred_language,
 		       st.created_at, enr.n, certs.n, pays.paid, act.last_at,
+		       st.suspended_at is not null,
 		       count(*) over()`+directoryFrom+where+`
 		order by st.created_at desc, st.id desc`+limitClause, args...)
 	if err != nil {
@@ -126,7 +135,7 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 		var it ListItem
 		if err := rows.Scan(&it.ID, &it.Name, &it.Email, &it.Mobile, &it.City, &it.State,
 			&it.PreferredLanguage, &it.RegisteredAt, &it.Enrollments, &it.Certificates,
-			&it.PaidPaise, &it.LastActivityAt, &res.Total); err != nil {
+			&it.PaidPaise, &it.LastActivityAt, &it.Suspended, &res.Total); err != nil {
 			return res, err
 		}
 		it.Status = "unpaid"
@@ -145,9 +154,10 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 		       count(*) filter (where enr.n > 0)::bigint,
 		       count(*) filter (where enr.n = 0)::bigint,
 		       count(*) filter (where certs.n > 0)::bigint,
+		       count(*) filter (where st.suspended_at is not null)::bigint,
 		       coalesce(sum(pays.paid), 0)::bigint`+directoryFrom).
 		Scan(&res.Summary.Registered, &res.Summary.Paid, &res.Summary.Unpaid,
-			&res.Summary.Certified, &res.Summary.RevenuePaise)
+			&res.Summary.Certified, &res.Summary.Suspended, &res.Summary.RevenuePaise)
 	if err != nil {
 		return res, err
 	}
@@ -156,6 +166,7 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 		"paid":      res.Summary.Paid,
 		"unpaid":    res.Summary.Unpaid,
 		"certified": res.Summary.Certified,
+		"suspended": res.Summary.Suspended,
 	}
 	return res, nil
 }
@@ -163,15 +174,19 @@ func (s *Store) List(ctx context.Context, f ListFilter) (ListResult, error) {
 // ---------- Detail ----------
 
 type Profile struct {
-	ID                int64     `json:"id"`
-	Name              string    `json:"name"`
-	Email             *string   `json:"email"`
-	Mobile            *string   `json:"mobile"`
-	City              string    `json:"city"`
-	State             string    `json:"state"`
-	PreferredLanguage string    `json:"preferredLanguage"`
-	RegisteredAt      time.Time `json:"registeredAt"`
-	LastActivityAt    time.Time `json:"lastActivityAt"`
+	ID                int64      `json:"id"`
+	Name              string     `json:"name"`
+	Email             *string    `json:"email"`
+	Mobile            *string    `json:"mobile"`
+	City              string     `json:"city"`
+	State             string     `json:"state"`
+	PreferredLanguage string     `json:"preferredLanguage"`
+	RegisteredAt      time.Time  `json:"registeredAt"`
+	LastActivityAt    time.Time  `json:"lastActivityAt"`
+	Suspended         bool       `json:"suspended"`
+	SuspendedAt       *time.Time `json:"suspendedAt"`
+	SuspendedReason   *string    `json:"suspendedReason"`
+	SuspendedByName   *string    `json:"suspendedByName"`
 }
 
 type Module struct {
@@ -248,12 +263,16 @@ func (s *Store) Get(ctx context.Context, id int64) (Detail, error) {
 	err := s.DB.QueryRow(ctx, `
 		select st.id, st.name, st.email, st.mobile, st.city, st.state, st.preferred_language,
 		       st.created_at,
+		       st.suspended_at, st.suspended_reason, a.name,
 		       greatest(st.created_at,
 		         (select max(last_seen_at) from sessions where student_id = st.id),
 		         (select max(updated_at) from module_progress where student_id = st.id))
-		from students st where st.id = $1`, id).
+		from students st left join admins a on a.id = st.suspended_by where st.id = $1`, id).
 		Scan(&d.Profile.ID, &d.Profile.Name, &d.Profile.Email, &d.Profile.Mobile, &d.Profile.City,
-			&d.Profile.State, &d.Profile.PreferredLanguage, &d.Profile.RegisteredAt, &d.Profile.LastActivityAt)
+			&d.Profile.State, &d.Profile.PreferredLanguage, &d.Profile.RegisteredAt,
+			&d.Profile.SuspendedAt, &d.Profile.SuspendedReason, &d.Profile.SuspendedByName,
+			&d.Profile.LastActivityAt)
+	d.Profile.Suspended = d.Profile.SuspendedAt != nil
 	if errors.Is(err, pgx.ErrNoRows) {
 		return d, ErrNotFound
 	}
@@ -486,6 +505,16 @@ func (s *Store) ManualEnroll(ctx context.Context, in ManualEnrollInput) (ManualE
 	}
 	res.StudentID = studentID
 
+	// A suspended student cannot be given new access until an admin reactivates them.
+	var suspended bool
+	if err := tx.QueryRow(ctx, `select suspended_at is not null from students where id = $1`,
+		studentID).Scan(&suspended); err != nil {
+		return res, err
+	}
+	if suspended {
+		return res, ErrSuspended
+	}
+
 	// Already enrolled? Check before inserting so the message is clear.
 	var exists bool
 	if err := tx.QueryRow(ctx, `
@@ -520,6 +549,14 @@ func (s *Store) ManualEnroll(ctx context.Context, in ManualEnrollInput) (ManualE
 	if _, err := tx.Exec(ctx, `
 		insert into activity_events (kind, message) values ('manual_enrollment', $1)`,
 		fmt.Sprintf("%s enrolled in %s (manual, %s)", who, courseTitle, in.Method)); err != nil {
+		return res, err
+	}
+
+	// Confirmation email, queued in the same transaction so it only goes out if the enrolment succeeded.
+	confirm := fmt.Sprintf("Hello %s,\n\nYour payment for %s has been recorded (%s, reference %s). "+
+		"Your access is now active. Sign in to start learning.\n\nCredit Dost Learning",
+		who, courseTitle, in.Method, in.Reference)
+	if err := notify.EnqueueToStudent(ctx, tx, studentID, "Your course access is active", confirm); err != nil {
 		return res, err
 	}
 
@@ -559,6 +596,93 @@ func (s *Store) IssueCertificate(ctx context.Context, studentID, courseID int64)
 }
 
 // RevokeAllSessions signs the student out everywhere. It returns how many sessions were ended.
+// Suspend blocks a student's access and signs them out everywhere. Data is kept.
+// It returns how many devices were signed out. The reason is required and recorded with the admin.
+func (s *Store) Suspend(ctx context.Context, studentID, adminID int64, reason string) (int64, error) {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var name string
+	var alreadySuspended bool
+	err = tx.QueryRow(ctx, `
+		select name, suspended_at is not null from students where id = $1 for update`, studentID).
+		Scan(&name, &alreadySuspended)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	if alreadySuspended {
+		return 0, ErrAlreadySuspended
+	}
+
+	if _, err := tx.Exec(ctx, `
+		update students
+		   set suspended_at = now(), suspended_reason = $2, suspended_by = $3, updated_at = now()
+		 where id = $1`, studentID, reason, adminID); err != nil {
+		return 0, err
+	}
+
+	tag, err := tx.Exec(ctx, `
+		update sessions set revoked_at = now() where student_id = $1 and revoked_at is null`, studentID)
+	if err != nil {
+		return 0, err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		insert into activity_events (kind, message) values ('student_suspended', $1)`,
+		fmt.Sprintf("%s was suspended: %s", name, reason)); err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
+// Reactivate lifts a suspension. Access returns, but signed-out devices stay signed out.
+func (s *Store) Reactivate(ctx context.Context, studentID int64) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var name string
+	var suspended bool
+	err = tx.QueryRow(ctx, `
+		select name, suspended_at is not null from students where id = $1 for update`, studentID).
+		Scan(&name, &suspended)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if !suspended {
+		return ErrNotSuspended
+	}
+
+	if _, err := tx.Exec(ctx, `
+		update students
+		   set suspended_at = null, suspended_reason = null, suspended_by = null, updated_at = now()
+		 where id = $1`, studentID); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		insert into activity_events (kind, message) values ('student_reactivated', $1)`,
+		fmt.Sprintf("%s was reactivated", name)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) RevokeAllSessions(ctx context.Context, studentID int64) (int64, error) {
 	var exists bool
 	if err := s.DB.QueryRow(ctx, `select exists(select 1 from students where id = $1)`, studentID).Scan(&exists); err != nil {

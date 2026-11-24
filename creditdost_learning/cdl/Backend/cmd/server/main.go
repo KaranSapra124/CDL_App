@@ -19,7 +19,11 @@ import (
 	"creditdost/backend/internal/db"
 	"creditdost/backend/internal/httpapi"
 	"creditdost/backend/internal/media"
+	"creditdost/backend/internal/notify"
+	"creditdost/backend/internal/payments"
+	"creditdost/backend/internal/portal"
 	"creditdost/backend/internal/students"
+	"creditdost/backend/internal/support"
 )
 
 func main() {
@@ -49,7 +53,25 @@ func main() {
 		Cfg:      cfg,
 		Courses:  &courses.Store{DB: pool},
 		Students: &students.Store{DB: pool},
+		Payments: &payments.Store{DB: pool},
+		Support:  &support.Store{DB: pool},
+		Portal:   &portal.Store{DB: pool},
 	}
+	// Email worker: sends queued notifications over SMTP. Without SMTP settings the queue waits.
+	if cfg.SMTPHost != "" {
+		mailer := &notify.Worker{
+			DB: pool,
+			Cfg: notify.Config{
+				Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername,
+				Password: cfg.SMTPPassword, From: cfg.SMTPFrom,
+			},
+		}
+		go mailer.Run(ctx)
+		log.Printf("email worker running (smtp: %s:%s)", cfg.SMTPHost, cfg.SMTPPort)
+	} else {
+		log.Printf("email not configured: set SMTP_HOST, SMTP_PORT and SMTP_FROM to send emails")
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Router(),

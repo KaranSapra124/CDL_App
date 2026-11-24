@@ -60,6 +60,11 @@ export function apiSend<T>(method: "PATCH" | "PUT" | "DELETE", path: string, bod
   });
 }
 
+/** POST multipart form data (text fields and optional files) to /api<path>. */
+export function apiPostForm<T>(path: string, form: FormData): Promise<T> {
+  return request<T>(path, { method: "POST", body: form });
+}
+
 /** GET /api<path>. Throws ApiError with status 401 when the session is missing or expired. */
 export function apiGet<T>(path: string): Promise<T> {
   return request<T>(path, { method: "GET", cache: "no-store" });

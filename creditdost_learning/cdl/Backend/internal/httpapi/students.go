@@ -14,7 +14,7 @@ import (
 	"creditdost/backend/internal/students"
 )
 
-var studentStatuses = map[string]bool{"all": true, "paid": true, "unpaid": true, "certified": true}
+var studentStatuses = map[string]bool{"all": true, "paid": true, "unpaid": true, "certified": true, "suspended": true}
 
 func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 	f, msg := parseStudentFilter(r)
@@ -54,13 +54,13 @@ func (s *Server) exportStudents(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("\xEF\xBB\xBF"))
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"Student ID", "Name", "Email", "Mobile", "City", "State", "Language",
-		"Registered", "Enrolments", "Certificates", "Paid (INR)", "Status", "Last activity"})
+		"Registered", "Enrolments", "Certificates", "Paid (INR)", "Status", "Suspended", "Last activity"})
 	for _, it := range res.Items {
 		_ = cw.Write([]string{
 			strconv.FormatInt(it.ID, 10), it.Name, deref(it.Email), deref(it.Mobile), it.City, it.State,
 			it.PreferredLanguage, it.RegisteredAt.Format("2006-01-02"),
 			strconv.FormatInt(it.Enrollments, 10), strconv.FormatInt(it.Certificates, 10),
-			fmt.Sprintf("%.2f", float64(it.PaidPaise)/100), it.Status,
+			fmt.Sprintf("%.2f", float64(it.PaidPaise)/100), it.Status, yesNo(it.Suspended),
 			it.LastActivityAt.Format("2006-01-02 15:04"),
 		})
 	}
@@ -74,7 +74,7 @@ func parseStudentFilter(r *http.Request) (students.ListFilter, string) {
 		status = "all"
 	}
 	if !studentStatuses[status] {
-		return students.ListFilter{}, "status must be all, paid, unpaid or certified"
+		return students.ListFilter{}, "status must be all, paid, unpaid, certified or suspended"
 	}
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
@@ -159,7 +159,7 @@ func (s *Server) manualEnroll(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "course not found")
 	case errors.Is(err, students.ErrCourseNotLive):
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
-	case errors.Is(err, students.ErrAlreadyEnrolled), errors.Is(err, students.ErrContactMismatch):
+	case errors.Is(err, students.ErrAlreadyEnrolled), errors.Is(err, students.ErrContactMismatch), errors.Is(err, students.ErrSuspended):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, students.ErrNeedsName):
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -221,6 +221,75 @@ func (s *Server) writeStudentError(w http.ResponseWriter, err error, fallback st
 	}
 	log.Printf("%s: %v", fallback, err)
 	writeError(w, http.StatusInternalServerError, fallback)
+}
+
+type suspendRequest struct {
+	Reason string `json:"reason"`
+}
+
+// suspendStudent blocks a student's access and signs them out everywhere. The reason is required.
+func (s *Server) suspendStudent(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(r, "id")
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid student id")
+		return
+	}
+	var req suspendRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		writeError(w, http.StatusBadRequest, "enter a reason for suspending this student")
+		return
+	}
+	if len(reason) > 500 {
+		writeError(w, http.StatusBadRequest, "the reason must be 500 characters or fewer")
+		return
+	}
+
+	admin, _ := r.Context().Value(ctxKey{}).(AdminUser)
+	n, err := s.Students.Suspend(r.Context(), id, admin.ID, reason)
+	switch {
+	case errors.Is(err, students.ErrNotFound):
+		writeError(w, http.StatusNotFound, "not found")
+	case errors.Is(err, students.ErrAlreadySuspended):
+		writeError(w, http.StatusConflict, err.Error())
+	case err != nil:
+		log.Printf("suspend student: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not suspend the student")
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{"suspended": true, "signedOutDevices": n})
+	}
+}
+
+// reactivateStudent lifts a suspension. Devices that were signed out stay signed out.
+func (s *Server) reactivateStudent(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(r, "id")
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid student id")
+		return
+	}
+	err := s.Students.Reactivate(r.Context(), id)
+	switch {
+	case errors.Is(err, students.ErrNotFound):
+		writeError(w, http.StatusNotFound, "not found")
+	case errors.Is(err, students.ErrNotSuspended):
+		writeError(w, http.StatusConflict, err.Error())
+	case err != nil:
+		log.Printf("reactivate student: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not reactivate the student")
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{"suspended": false})
+	}
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "Yes"
+	}
+	return "No"
 }
 
 func deref(s *string) string {

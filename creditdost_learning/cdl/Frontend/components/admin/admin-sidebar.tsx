@@ -3,39 +3,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavItem = { label: string; href?: string };
+type NavItem = { label: string; href: string };
 type NavGroup = { title: string; items: NavItem[] };
 
-// Items with an href are built. Items without one are shown as "Soon" until their page exists.
+// Only pages that exist are listed.
 const NAV: NavGroup[] = [
   { title: "Overview", items: [{ label: "Dashboard", href: "/dashboard" }] },
   {
     title: "Learning management",
-    items: [
-      { label: "Courses", href: "/courses" },
-      { label: "Videos" },
-      { label: "AI Dubbing" },
-      { label: "Live Classes" },
-    ],
+    items: [{ label: "Courses", href: "/courses" }],
   },
   {
     title: "Students",
     items: [
       { label: "All Students", href: "/students" },
       { label: "Manual Enrollment", href: "/students/enroll" },
-      { label: "Certificates" },
+      { label: "Certificates", href: "/certificates" },
     ],
   },
   {
     title: "Commerce",
-    items: [{ label: "Transactions" }, { label: "Revenue Analytics" }, { label: "Pricing & Offers" }, { label: "Coupons" }],
+    items: [{ label: "Transactions", href: "/payments" }],
   },
   {
     title: "Engagement",
-    items: [{ label: "Support Tickets" }, { label: "Notifications" }, { label: "Module Ratings" }],
+    items: [
+      { label: "Support Tickets", href: "/support" },
+      { label: "Notifications", href: "/notifications" },
+    ],
   },
-  { title: "Analytics", items: [{ label: "Platform Analytics" }, { label: "Google Sheets" }] },
-  { title: "System", items: [{ label: "Admin Management" }] },
 ];
 
 export function AdminSidebar() {
@@ -64,18 +60,6 @@ export function AdminSidebar() {
             </p>
             <ul className="flex flex-col gap-0.5">
               {group.items.map((item) => {
-                if (!item.href) {
-                  return (
-                    <li key={item.label}>
-                      <span className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-400">
-                        {item.label}
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-400">
-                          Soon
-                        </span>
-                      </span>
-                    </li>
-                  );
-                }
                 const active = pathname === item.href;
                 return (
                   <li key={item.label}>

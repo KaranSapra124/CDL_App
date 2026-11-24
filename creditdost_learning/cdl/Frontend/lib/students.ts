@@ -1,7 +1,7 @@
 // Types and API calls for the students module. Mirrors the Go API responses.
 import { apiGet, apiPost } from "./api";
 
-export type StudentStatus = "all" | "paid" | "unpaid" | "certified";
+export type StudentStatus = "all" | "paid" | "unpaid" | "certified" | "suspended";
 
 export type StudentListItem = {
   id: number;
@@ -17,6 +17,7 @@ export type StudentListItem = {
   paidPaise: number;
   lastActivityAt: string;
   status: "paid" | "unpaid";
+  suspended: boolean;
 };
 
 export type StudentList = {
@@ -25,7 +26,14 @@ export type StudentList = {
   page: number;
   limit: number;
   counts: Record<string, number>;
-  summary: { registered: number; paid: number; unpaid: number; certified: number; revenuePaise: number };
+  summary: {
+    registered: number;
+    paid: number;
+    unpaid: number;
+    certified: number;
+    suspended: number;
+    revenuePaise: number;
+  };
 };
 
 export type StudentListParams = {
@@ -100,6 +108,10 @@ export type StudentDetail = {
     preferredLanguage: string;
     registeredAt: string;
     lastActivityAt: string;
+    suspended: boolean;
+    suspendedAt: string | null;
+    suspendedReason: string | null;
+    suspendedByName: string | null;
   };
   enrollments: StudentEnrollment[];
   payments: StudentPayment[];
@@ -155,4 +167,12 @@ export function issueCertificate(studentId: number, courseId: number) {
 
 export function signOutEverywhere(studentId: number): Promise<{ signedOutDevices: number }> {
   return apiPost(`/admin/students/${studentId}/sessions/revoke-all`, {});
+}
+
+export function suspendStudent(studentId: number, reason: string): Promise<{ signedOutDevices: number }> {
+  return apiPost(`/admin/students/${studentId}/suspend`, { reason });
+}
+
+export function reactivateStudent(studentId: number): Promise<{ suspended: boolean }> {
+  return apiPost(`/admin/students/${studentId}/reactivate`, {});
 }

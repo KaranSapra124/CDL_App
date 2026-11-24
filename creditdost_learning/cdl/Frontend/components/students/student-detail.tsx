@@ -9,7 +9,9 @@ import { formatNumber, formatPaise, timeAgo } from "@/lib/format";
 import {
   getStudent,
   issueCertificate,
+  reactivateStudent,
   signOutEverywhere,
+  suspendStudent,
   type StudentDetail as Detail,
   type StudentEnrollment,
   type StudentPayment,
@@ -35,6 +37,8 @@ export function StudentDetail() {
   const [tab, setTab] = useState<Tab>("overview");
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [suspendReason, setSuspendReason] = useState("");
 
   function load() {
     return getStudent(id)
@@ -104,7 +108,10 @@ export function StudentDetail() {
             {initials(d.profile.name)}
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{d.profile.name}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-900">{d.profile.name}</h1>
+              {d.profile.suspended ? <Badge tone="red">Suspended</Badge> : null}
+            </div>
             <p className="text-xs text-slate-500">STU-{d.profile.id} · Registered {new Date(d.profile.registeredAt).toLocaleDateString("en-IN")}</p>
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-700">
               <span>{d.profile.email ?? "No email"}</span>
@@ -134,8 +141,94 @@ export function StudentDetail() {
           >
             Sign out everywhere
           </button>
+          {d.profile.suspended ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm("Reactivate this student? They will be able to sign in again.")) return;
+                void run(async () => {
+                  await reactivateStudent(d.profile.id);
+                  return "Student reactivated. Access is restored.";
+                });
+              }}
+              className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              Reactivate account
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setSuspendOpen((v) => !v)}
+              className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              Suspend account
+            </button>
+          )}
         </div>
       </div>
+
+      {d.profile.suspended ? (
+        <section className="flex flex-col gap-1 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+          <p className="font-semibold">This account is suspended.</p>
+          <p>Reason: {d.profile.suspendedReason ?? "—"}</p>
+          <p className="text-xs text-red-700">
+            Suspended {d.profile.suspendedAt ? new Date(d.profile.suspendedAt).toLocaleString("en-IN") : ""}
+            {d.profile.suspendedByName ? ` by ${d.profile.suspendedByName}` : ""}. The student cannot sign in or watch
+            videos. Their enrolments, progress, payments and certificates are kept.
+          </p>
+        </section>
+      ) : null}
+
+      {suspendOpen && !d.profile.suspended ? (
+        <section className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+          <h2 className="font-bold text-slate-900">Suspend this account</h2>
+          <p className="text-sm text-slate-500">
+            The student is signed out of every device and blocked from signing in and watching videos. Their data is kept, and you can reactivate the account at any time.
+          </p>
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
+            Reason (required, shown to other admins)
+            <textarea
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="e.g. Shared login with another person"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal focus:border-indigo-500 focus:outline-none"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy || suspendReason.trim() === ""}
+              onClick={() => {
+                const reason = suspendReason.trim();
+                if (!reason) return;
+                void run(async () => {
+                  const res = await suspendStudent(d.profile.id, reason);
+                  setSuspendOpen(false);
+                  setSuspendReason("");
+                  return `Account suspended. Signed out of ${res.signedOutDevices} device${res.signedOutDevices === 1 ? "" : "s"}.`;
+                });
+              }}
+              className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              Confirm suspension
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSuspendOpen(false);
+                setSuspendReason("");
+              }}
+              className="h-10 rounded-lg border border-slate-300 px-4 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {notice ? (
         <div
@@ -405,11 +498,12 @@ function Empty({ text }: { text: string }) {
   return <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">{text}</p>;
 }
 
-function Badge({ tone, children }: { tone: "green" | "amber" | "indigo"; children: ReactNode }) {
+function Badge({ tone, children }: { tone: "green" | "amber" | "indigo" | "red"; children: ReactNode }) {
   const cls = {
     green: "bg-emerald-50 text-emerald-700",
     amber: "bg-amber-50 text-amber-700",
     indigo: "bg-indigo-50 text-indigo-700",
+    red: "bg-red-50 text-red-700",
   }[tone];
   return <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${cls}`}>{children}</span>;
 }

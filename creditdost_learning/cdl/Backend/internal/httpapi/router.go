@@ -13,7 +13,10 @@ import (
 
 	"creditdost/backend/internal/config"
 	"creditdost/backend/internal/courses"
+	"creditdost/backend/internal/payments"
+	"creditdost/backend/internal/portal"
 	"creditdost/backend/internal/students"
+	"creditdost/backend/internal/support"
 )
 
 // Server bundles the dependencies every handler needs.
@@ -22,6 +25,9 @@ type Server struct {
 	Cfg      config.Config
 	Courses  *courses.Store
 	Students *students.Store
+	Payments *payments.Store
+	Support  *support.Store
+	Portal   *portal.Store
 }
 
 // Router builds the full route tree for the API.
@@ -32,11 +38,17 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	// Lets the admin app call the API directly (used for large video uploads in development).
-	// Credentials are allowed so the session cookie is sent. Only the configured origin is accepted.
-	if s.Cfg.AdminOrigin != "" {
+	// Lets the admin and student web apps call the API directly (development).
+	// Credentials are allowed so the session cookies are sent. Only the configured origins are accepted.
+	var origins []string
+	for _, o := range []string{s.Cfg.AdminOrigin, s.Cfg.StudentOrigin} {
+		if o != "" {
+			origins = append(origins, o)
+		}
+	}
+	if len(origins) > 0 {
 		r.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   []string{s.Cfg.AdminOrigin},
+			AllowedOrigins:   origins,
 			AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Content-Type"},
 			AllowCredentials: true,
@@ -45,6 +57,33 @@ func (s *Server) Router() http.Handler {
 	}
 
 	r.Get("/healthz", s.healthz)
+
+	r.Route("/api/student", func(r chi.Router) {
+		r.Post("/auth/register", s.studentRegister)
+		r.Post("/auth/login", s.studentLogin)
+		r.Group(func(r chi.Router) {
+			r.Use(s.requireStudent)
+			r.Post("/auth/logout", s.studentLogout)
+			r.Get("/me", s.studentMe)
+			r.Patch("/me", s.studentUpdateProfile)
+			r.Get("/me/avatar", s.studentAvatar)
+			r.Post("/me/avatar", s.studentUploadAvatar)
+			r.Delete("/me/avatar", s.studentDeleteAvatar)
+			r.Get("/languages", s.studentLanguages)
+			r.Get("/catalogue", s.studentCatalogue)
+			r.Get("/notifications", s.studentNotices)
+			r.Get("/tickets", s.studentTickets)
+			r.Post("/tickets", s.studentRaiseTicket)
+			r.Get("/tickets/{id}", s.studentTicket)
+			r.Post("/tickets/{id}/messages", s.studentReplyToTicket)
+			r.Get("/tickets/{id}/messages/{messageId}/attachment", s.studentTicketAttachment)
+			r.Get("/courses", s.studentCatalogue)
+			r.Get("/courses/{id}", s.studentCourse)
+			r.Put("/modules/{id}/progress", s.studentProgress)
+			r.Post("/modules/{id}/progress", s.studentProgress)
+			r.Get("/modules/{id}/hls/*", s.studentStream)
+		})
+	})
 
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Post("/auth/login", s.login)
@@ -81,6 +120,26 @@ func (s *Server) Router() http.Handler {
 			r.Get("/students/{id}", s.getStudent)
 			r.Post("/students/{id}/certificates", s.issueCertificate)
 			r.Post("/students/{id}/sessions/revoke-all", s.revokeStudentSessions)
+			r.Post("/students/{id}/suspend", s.suspendStudent)
+			r.Post("/students/{id}/reactivate", s.reactivateStudent)
+
+			r.Get("/revenue", s.revenueSummary)
+			r.Get("/transactions", s.listTransactions)
+			r.Get("/transactions/export", s.exportTransactions)
+
+			r.Get("/tickets", s.listTickets)
+			r.Get("/tickets/{id}", s.getTicket)
+			r.Post("/tickets/{id}/messages", s.replyToTicket)
+			r.Get("/tickets/{id}/messages/{messageId}/attachment", s.ticketAttachment)
+			r.Patch("/tickets/{id}/status", s.setTicketStatus)
+			r.Post("/tickets/{id}/assign", s.assignTicket)
+
+			r.Get("/notifications/config", s.notificationsConfig)
+			r.Get("/notifications", s.listNotifications)
+			r.Post("/notifications", s.sendNotification)
+
+			r.Get("/certificates", s.listCertificates)
+			r.Get("/certificates/{code}/pdf", s.certificatePDF)
 		})
 	})
 

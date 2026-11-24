@@ -19,6 +19,7 @@ const TABS: { key: StudentStatus; label: string }[] = [
   { key: "paid", label: "Enrolled" },
   { key: "unpaid", label: "Not enrolled" },
   { key: "certified", label: "Certified" },
+  { key: "suspended", label: "Suspended" },
 ];
 
 const LIMIT = 10;
@@ -199,13 +200,17 @@ export function StudentDirectory() {
                 <td className="px-4 py-3 font-semibold text-slate-900">{formatPaise(st.paidPaise)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-500">{timeAgo(st.lastActivityAt)}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      st.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {st.status === "paid" ? "Enrolled" : "Not enrolled"}
-                  </span>
+                  {st.suspended ? (
+                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">Suspended</span>
+                  ) : (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        st.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {st.status === "paid" ? "Enrolled" : "Not enrolled"}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

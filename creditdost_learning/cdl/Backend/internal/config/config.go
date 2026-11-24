@@ -18,9 +18,15 @@ type Config struct {
 	MediaDir        string // root folder for uploaded files, e.g. /srv/cdl/media on the VPS
 	MaxVideoBytes   int64  // largest accepted video upload
 	AdminOrigin     string // origin of the admin web app allowed to call the API directly, e.g. http://localhost:3000; empty = no CORS
+	StudentOrigin   string // origin of the student web app (Flutter web), e.g. http://localhost:5050; empty = no CORS
 	Transcode       bool   // run the video transcoder inside this process
 	FFmpegPath      string // ffmpeg executable
 	FFprobePath     string // ffprobe executable
+	SMTPHost        string
+	SMTPPort        string
+	SMTPUsername    string
+	SMTPPassword    string
+	SMTPFrom        string
 }
 
 // Load reads and validates configuration. It returns an error naming the
@@ -35,9 +41,15 @@ func Load() (Config, error) {
 		MediaDir:        getenv("MEDIA_DIR", "./media"),
 		MaxVideoBytes:   getint64("MAX_VIDEO_BYTES", 4<<30), // 4 GiB
 		AdminOrigin:     os.Getenv("ADMIN_ORIGIN"),
+		StudentOrigin:   getenv("STUDENT_ORIGIN", "http://localhost:5050"),
 		Transcode:       getbool("TRANSCODE_ENABLED", true),
 		FFmpegPath:      getenv("FFMPEG_PATH", "ffmpeg"),
 		FFprobePath:     getenv("FFPROBE_PATH", "ffprobe"),
+		SMTPHost:        os.Getenv("SMTP_HOST"),
+		SMTPPort:        getenv("SMTP_PORT", "587"),
+		SMTPUsername:    os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:    os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:        os.Getenv("SMTP_FROM"),
 	}
 
 	if cfg.DatabaseURL == "" {
