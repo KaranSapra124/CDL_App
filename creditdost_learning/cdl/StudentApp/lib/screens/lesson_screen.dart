@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../core/api_client.dart';
@@ -108,6 +109,24 @@ class _LessonScreenState extends State<LessonScreen> {
     }
   }
 
+  /// Opens the same player full screen (landscape, system bars hidden). Playback continues.
+  Future<void> _enterFullscreen() async {
+    final c = _controller;
+    if (c == null) return;
+    await Navigator.of(context).push(PageRouteBuilder<void>(
+      opaque: true,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (_, __, ___) => _FullscreenPlayer(
+        controller: c,
+        onTogglePlay: _togglePlay,
+        onSeekBack: () => _seekBy(-10),
+        onSeekForward: () => _seekBy(10),
+        onSpeed: _cycleSpeed,
+      ),
+      transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+    ));
+  }
+
   void _openModule(ModuleItem other) {
     if (!other.playable || other.id == m.id) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
@@ -140,11 +159,11 @@ class _LessonScreenState extends State<LessonScreen> {
           _Player(
             controller: _controller,
             error: _error,
-            speedLabel: _speedLabel,
             onTogglePlay: _togglePlay,
             onSeekBack: () => _seekBy(-10),
             onSeekForward: () => _seekBy(10),
             onSpeed: _cycleSpeed,
+            onToggleFullscreen: _enterFullscreen,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -233,20 +252,24 @@ class _Player extends StatelessWidget {
   const _Player({
     required this.controller,
     required this.error,
-    required this.speedLabel,
     required this.onTogglePlay,
     required this.onSeekBack,
     required this.onSeekForward,
     required this.onSpeed,
+    required this.onToggleFullscreen,
+    this.fullscreen = false,
   });
 
   final VideoPlayerController? controller;
   final String? error;
-  final String speedLabel;
   final VoidCallback onTogglePlay;
   final VoidCallback onSeekBack;
   final VoidCallback onSeekForward;
   final VoidCallback onSpeed;
+  final VoidCallback onToggleFullscreen;
+
+  /// Fills the screen instead of a 16:9 box, and the button exits full screen.
+  final bool fullscreen;
 
   @override
   Widget build(BuildContext context) {
@@ -277,9 +300,9 @@ class _Player extends StatelessWidget {
         final total = v.duration.inSeconds;
         final pos = v.position.inSeconds;
         final pct = total > 0 ? (pos * 100 / total).round() : 0;
-        return AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Container(
+        final speed = v.playbackSpeed;
+        final speedLabel = speed == 1.0 ? '1x' : '${speed}x';
+        final frame = Container(
             color: Colors.black,
             child: Stack(
               fit: StackFit.expand,
@@ -368,6 +391,20 @@ class _Player extends StatelessWidget {
                               child: Text(speedLabel, style: AppText.labelSm.copyWith(color: Colors.white)),
                             ),
                           ),
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: onToggleFullscreen,
+                            customBorder: const CircleBorder(),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                                color: Colors.white,
+                                size: 24,
+                                semanticLabel: fullscreen ? 'Exit full screen' : 'Full screen',
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -375,11 +412,67 @@ class _Player extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        );
+          );
+        return fullscreen ? frame : AspectRatio(aspectRatio: 16 / 9, child: frame);
       },
     );
   }
+}
+
+/// Full-screen playback of the lesson's existing controller (no reload). Landscape for wide
+/// videos, portrait for tall ones; system bars hidden. Leaving restores portrait and the bars.
+class _FullscreenPlayer extends StatefulWidget {
+  const _FullscreenPlayer({
+    required this.controller,
+    required this.onTogglePlay,
+    required this.onSeekBack,
+    required this.onSeekForward,
+    required this.onSpeed,
+  });
+
+  final VideoPlayerController controller;
+  final VoidCallback onTogglePlay;
+  final VoidCallback onSeekBack;
+  final VoidCallback onSeekForward;
+  final VoidCallback onSpeed;
+
+  @override
+  State<_FullscreenPlayer> createState() => _FullscreenPlayerState();
+}
+
+class _FullscreenPlayerState extends State<_FullscreenPlayer> {
+  @override
+  void initState() {
+    super.initState();
+    final wide = widget.controller.value.aspectRatio >= 1;
+    SystemChrome.setPreferredOrientations(wide
+        ? const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
+        : const [DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    // Empty list = back to the phone's own rotation setting.
+    SystemChrome.setPreferredOrientations(const []);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: Colors.black,
+        body: _Player(
+          controller: widget.controller,
+          error: null,
+          fullscreen: true,
+          onTogglePlay: widget.onTogglePlay,
+          onSeekBack: widget.onSeekBack,
+          onSeekForward: widget.onSeekForward,
+          onSpeed: widget.onSpeed,
+          onToggleFullscreen: () => Navigator.of(context).maybePop(),
+        ),
+      );
 }
 
 class _RoundButton extends StatelessWidget {

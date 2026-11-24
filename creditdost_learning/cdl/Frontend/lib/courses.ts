@@ -171,3 +171,33 @@ export function createInstructor(name: string, title: string): Promise<Instructo
 export function createCategory(name: string): Promise<Category> {
   return apiPost<Category>("/admin/categories", { name });
 }
+
+/**
+ * Reads a video's length (whole seconds) from the file's metadata in the browser, before upload.
+ * Returns null when the browser cannot read it (some .mov codecs); the server measures the length
+ * with ffprobe after processing either way, and that value is final.
+ */
+export function readVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let settled = false;
+    const done = (value: number | null) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+      resolve(value);
+    };
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadedmetadata = () => {
+      const d = video.duration;
+      done(Number.isFinite(d) && d > 0 ? Math.round(d) : null);
+    };
+    video.onerror = () => done(null);
+    setTimeout(() => done(null), 15000);
+    video.src = url;
+  });
+}

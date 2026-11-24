@@ -115,10 +115,11 @@ func (t *Transcoder) processNext(ctx context.Context) (bool, error) {
 	}
 
 	// Record success only if the source is unchanged. If it was replaced mid-job, the new upload is queued.
+	// The length measured by ffprobe replaces any typed value; the old value is kept only if probing failed.
 	tag, err := t.opt.DB.Exec(ctx, `
 		update modules set
 		  video_status = 'ready', hls_path = $3, video_error = null,
-		  duration_seconds = coalesce(duration_seconds, $4), updated_at = now()
+		  duration_seconds = coalesce($4, duration_seconds), updated_at = now()
 		where id = $1 and video_original_path = $2`, moduleID, source, hlsRel, duration)
 	if err != nil {
 		return true, err

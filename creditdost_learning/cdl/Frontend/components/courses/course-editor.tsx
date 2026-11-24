@@ -19,6 +19,7 @@ import {
   updateModule,
   uploadCourseThumbnail,
   uploadModuleVideo,
+  readVideoDuration,
   type Category,
   type Course,
   type CoursePatch,
@@ -504,7 +505,6 @@ function ModulesCard({
   onNotice: (n: { kind: "ok" | "error"; text: string }) => void;
 }) {
   const [title, setTitle] = useState("");
-  const [minutes, setMinutes] = useState("");
   const [free, setFree] = useState(false);
   const [adding, setAdding] = useState(false);
   const modules = course.modules;
@@ -516,12 +516,10 @@ function ModulesCard({
     try {
       const m = await createModule(course.id, {
         title: title.trim(),
-        durationSeconds: minutes ? Math.round(Number(minutes) * 60) : undefined,
         isFreePreview: free,
       });
       onChange({ ...course, modules: [...course.modules, m] });
       setTitle("");
-      setMinutes("");
       setFree(false);
     } catch (err) {
       onNotice({ kind: "error", text: errorMessage(err, "Could not add the module.") });
@@ -569,10 +567,6 @@ function ModulesCard({
           <label className="mb-1 block text-xs font-semibold text-slate-700">New module title</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. How DPD affects approvals" className={inputClass} />
         </div>
-        <div className="w-28">
-          <label className="mb-1 block text-xs font-semibold text-slate-700">Minutes</label>
-          <input inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={inputClass} />
-        </div>
         <label className="flex items-center gap-2 pb-2 text-sm text-slate-700">
           <input type="checkbox" checked={free} onChange={(e) => setFree(e.target.checked)} />
           Free preview
@@ -584,7 +578,7 @@ function ModulesCard({
 
       {modules.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
-          No modules yet. Add one above, then upload its video.
+          No modules yet. Add one above, then upload its video. The length is read from the video automatically.
         </p>
       ) : null}
 
@@ -655,7 +649,14 @@ function ModuleRow({
   async function upload(file: File) {
     setProgress(0);
     try {
-      onChanged(await uploadModuleVideo(m.id, file, setProgress));
+      // Read the length from the file while it uploads. The server re-measures it after processing.
+      const durationPromise = readVideoDuration(file);
+      let updated = await uploadModuleVideo(m.id, file, setProgress);
+      const seconds = await durationPromise;
+      if (seconds && seconds !== updated.durationSeconds) {
+        updated = await updateModule(m.id, { durationSeconds: seconds });
+      }
+      onChanged(updated);
       onNotice({ kind: "ok", text: `Video uploaded for "${m.title}".` });
     } catch (err) {
       onNotice({ kind: "error", text: errorMessage(err, "Video upload failed.") });
